@@ -10,15 +10,15 @@ from queue import Queue
 from os.path import join, dirname, abspath, exists, split, basename, isdir, isfile
 from glob import glob
 
-import gpu
-from gpu_extras.batch import batch_for_shader
-import blf
+import gpu # type: ignore
+from gpu_extras.batch import batch_for_shader # type: ignore
+import blf # type: ignore
 
 # Blender Imports :
-import bpy
-import bpy_extras
-from mathutils import Matrix, Vector, Euler, kdtree
-from bpy.props import (
+import bpy # type: ignore
+import bpy_extras # type: ignore
+from mathutils import Matrix, Vector, Euler, kdtree # type: ignore
+from bpy.props import ( # type: ignore
     StringProperty,
     IntProperty,
     FloatProperty,
@@ -30,24 +30,32 @@ import SimpleITK as sitk
 import vtk
 import cv2
 
-from vtk.util import numpy_support
+from vtk.util import numpy_support # type: ignore
 from vtk import vtkCommand
 
 # Global Variables :
 
 # from . import BDENTAL_Utils
 from .BDENTAL_Utils import *
+from ..utils import (
+    ADDON_DIR,
+    ADDON_VER_PATH,
+    BDENTAL_GpuDrawText,
+    TELEGRAM_LINK,
+    VERSION_URL,
+    BLF_INFO,
+    BdentalColors,
+    BDENTAL_LIB_NAME
+)
+
 
 #Addon_Enable(AddonName="mesh_looptools", Enable=True) ----> deprecated
 #install_blender_extensions(["mesh_looptools"]) #restricted context here
-addon_dir = dirname(dirname(abspath(__file__)))
-Addon_Version_Path = join(addon_dir, "Resources","BDENTAL_Version.txt")
-DataBlendFile = join(addon_dir, "Resources", "BlendData",
+# ADDON_DIR = dirname(dirname(abspath(__file__)))
+DataBlendFile = join(ADDON_DIR, "Resources", "BlendData",
                      "BDENTAL_BlendData.blend")
 bdental_app_template_zip_file = join(
-    addon_dir, "Resources", "bdental_app_template.zip")
-BDENTAL_LIB_NAME='Bdental_Library'
-BDENTAL_LIB_UI_NAME='Bdental Library'
+    ADDON_DIR, "Resources", "bdental_app_template.zip")
 
 
 # "VGS_Marcos_modified_MinMax"#"VGS_Marcos_modified"  # "VGS_Marcos_01" "VGS_Dakir_01"
@@ -56,147 +64,142 @@ bdental_volume_node_name = "bdental_volume"
 ProgEvent = vtkCommand.ProgressEvent
 
 Wmin, Wmax = -400, 3000
-DRAW_HANDLERS = []
+# DRAW_HANDLERS = []
 SLICES_TXT_HANDLER = []
 message_queue = Queue()
 FLY_IMPLANT_INDEX = None
-TELEGRAM_LINK = "https://t.me/bdental3"
-VERSION_URL = "https://raw.githubusercontent.com/issamdakir/Bdental-3-win/main/Resources/BDENTAL_Version.txt"
 RESTART = False
 
-BLF_INFO = {
-    "fontid" : 0,
-    "size" : 18
-}
-class BdentalColors():
-    white = [0.8,0.8,0.8,1.0]
-    black = [0.0,0.0,0.0,1.0]
-    trans = [0.8,0.8,0.8,0.0]
-    red = [1.0,0.0,0.0,1.0]
-    orange = [0.8, 0.258385, 0.041926, 1.0]
-    yellow = [0.4,0.4,0.1,1]
-    green = [0,1,0.2,0.7]
-    blue = [0.2,0.1,1,0.2]
-    default = orange
+
+# class BdentalColors():
+#     white = [0.8,0.8,0.8,1.0]
+#     black = [0.0,0.0,0.0,1.0]
+#     trans = [0.8,0.8,0.8,0.0]
+#     red = [1.0,0.0,0.0,1.0]
+#     orange = [0.8, 0.258385, 0.041926, 1.0]
+#     yellow = [0.4,0.4,0.1,1]
+#     green = [0,1,0.2,0.7]
+#     blue = [0.2,0.1,1,0.2]
+#     default = orange
 #######################################################################################
 # functions :
 
 
-def gpu_info_footer(rect_color, text_list, button=False, btn_txt="", pourcentage=100):
-    global BLF_INFO
-    if pourcentage <= 0:
-        pourcentage = 1
-    if pourcentage > 100:
-        pourcentage = 100
+# def gpu_info_footer(rect_color, text_list, button=False, btn_txt="", pourcentage=100):
+#     global BLF_INFO
+#     if pourcentage <= 0:
+#         pourcentage = 1
+#     if pourcentage > 100:
+#         pourcentage = 100
 
-    def draw_callback_function():
+#     def draw_callback_function():
 
-        w = int(bpy.context.area.width * (pourcentage/100))
-        for i, txt in enumerate((reversed(text_list))):
+#         w = int(bpy.context.area.width * (pourcentage/100))
+#         for i, txt in enumerate((reversed(text_list))):
 
-            h = 30
-            # color = [0.4, 0.4, 0.8, 1.000000]
-            # color =[0.9, 0.5, 0.000000, 1.000000]
-            draw_gpu_rect(0, h*i, w, h, rect_color)
-            blf.position(0, 10, 10 + (h*i), 0)
-            blf.size(BLF_INFO.get("fontid"), BLF_INFO.get("size")) # 3.6 api blf.size(0, 40, 30) -> blf.size(fontid, size)
-            r, g, b, a = (0.0, 0.0, 0.0, 1.0)
-            blf.color(0, r, g, b, a)
-            blf.draw(0, txt)
+#             h = 30
+#             # color = [0.4, 0.4, 0.8, 1.000000]
+#             # color =[0.9, 0.5, 0.000000, 1.000000]
+#             draw_gpu_rect(0, h*i, w, h, rect_color)
+#             blf.position(0, 10, 10 + (h*i), 0)
+#             blf.size(BLF_INFO.get("fontid"), BLF_INFO.get("size")) # 3.6 api blf.size(0, 40, 30) -> blf.size(fontid, size)
+#             r, g, b, a = (0.0, 0.0, 0.0, 1.0)
+#             blf.color(0, r, g, b, a)
+#             blf.draw(0, txt)
 
-        if button:
+#         if button:
 
-            h = 30
-            color = [0.8, 0.258385, 0.041926, 1.0]
-            draw_gpu_rect(w-110, 2, 100, h-4, color)
-            blf.position(0, w-85, 10, 0)
-            blf.size(BLF_INFO.get("fontid"), BLF_INFO.get("size")) # 3.6 api blf.size(0, 40, 30) -> blf.size(fontid, size)
-            r, g, b, a = (0.0, 0.0, 0.0, 1.0)
-            blf.color(0, r, g, b, a)
-            blf.draw(0, btn_txt)
+#             h = 30
+#             color = [0.8, 0.258385, 0.041926, 1.0]
+#             draw_gpu_rect(w-110, 2, 100, h-4, color)
+#             blf.position(0, w-85, 10, 0)
+#             blf.size(BLF_INFO.get("fontid"), BLF_INFO.get("size")) # 3.6 api blf.size(0, 40, 30) -> blf.size(fontid, size)
+#             r, g, b, a = (0.0, 0.0, 0.0, 1.0)
+#             blf.color(0, r, g, b, a)
+#             blf.draw(0, btn_txt)
 
-    info_handler = bpy.types.SpaceView3D.draw_handler_add(
-        draw_callback_function, (), "WINDOW", "POST_PIXEL"
-    )
-    # redraw scene
-    # bpy.ops.wm.redraw_timer(type = 'DRAW_WIN_SWAP', iterations = 1)
-    # for area in bpy.context.window.screen.areas:
-    #     if area.type == "VIEW_3D":
-    #         area.tag_redraw()
+#     info_handler = bpy.types.SpaceView3D.draw_handler_add(
+#         draw_callback_function, (), "WINDOW", "POST_PIXEL"
+#     )
+#     # redraw scene
+#     # bpy.ops.wm.redraw_timer(type = 'DRAW_WIN_SWAP', iterations = 1)
+#     # for area in bpy.context.window.screen.areas:
+#     #     if area.type == "VIEW_3D":
+#     #         area.tag_redraw()
 
-    return info_handler
-def get_btn_bb(btn_index=0, btn_width=100, btn_height=26, padding_x=10, padding_y=2, safe_area=5):
-    area3d = None
-    area3d_check = [
-        area for area in bpy.context.screen.areas if area.type == "VIEW_3D"]
-    if area3d_check:
-        area3d = area3d_check[0]
-    if area3d:
-        w = area3d.width
-        x_min = w - padding_x - (btn_width*(btn_index+1)) - \
-            (padding_x*btn_index) - safe_area
-        x_max = w - padding_x - (btn_width*(btn_index)) - \
-            (padding_x*btn_index) + safe_area
-        y_min = 0
-        y_max = btn_height+safe_area
-        btn_bb = {
-            "x_min": x_min,
-            "x_max": x_max,
-            "y_min": y_min,
-            "y_max": y_max
-        }
-        return btn_bb
-    else:
-        return None
+#     return info_handler
+# def get_btn_bb(btn_index=0, btn_width=100, btn_height=26, padding_x=10, padding_y=2, safe_area=5):
+#     area3d = None
+#     area3d_check = [
+#         area for area in bpy.context.screen.areas if area.type == "VIEW_3D"]
+#     if area3d_check:
+#         area3d = area3d_check[0]
+#     if area3d:
+#         w = area3d.width
+#         x_min = w - padding_x - (btn_width*(btn_index+1)) - \
+#             (padding_x*btn_index) - safe_area
+#         x_max = w - padding_x - (btn_width*(btn_index)) - \
+#             (padding_x*btn_index) + safe_area
+#         y_min = 0
+#         y_max = btn_height+safe_area
+#         btn_bb = {
+#             "x_min": x_min,
+#             "x_max": x_max,
+#             "y_min": y_min,
+#             "y_max": y_max
+#         }
+#         return btn_bb
+#     else:
+#         return None
 
-def draw_gpu_circle(center_2d, radius, segments, color_rgba):
+# def draw_gpu_circle(center_2d, radius, segments, color_rgba):
 
-    x, y = center_2d
-    circle_co = []
-    m = (1.0 / (segments - 1)) * (pi * 2)
+#     x, y = center_2d
+#     circle_co = []
+#     m = (1.0 / (segments - 1)) * (pi * 2)
 
-    for p in range(segments):
-        p1 = x + cos(m * p) * radius
-        p2 = y + sin(m * p) * radius
-        circle_co.append((p1, p2))
+#     for p in range(segments):
+#         p1 = x + cos(m * p) * radius
+#         p2 = y + sin(m * p) * radius
+#         circle_co.append((p1, p2))
 
-    shader = gpu.shader.from_builtin('UNIFORM_COLOR')
-    batch = batch_for_shader(shader, 'TRI_FAN', {"pos":  circle_co})
-    shader.bind()
-    shader.uniform_float("color", color_rgba)
-    batch.draw(shader)
+#     shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+#     batch = batch_for_shader(shader, 'TRI_FAN', {"pos":  circle_co})
+#     shader.bind()
+#     shader.uniform_float("color", color_rgba)
+#     batch.draw(shader)
 
-def draw_gpu_rect(x, y, w, h, rect_color):
+# def draw_gpu_rect(x, y, w, h, rect_color):
 
-    vertices = (
-        (x, y), (x, y + h),
-        (x + w, y + h), (x + w, y))
+#     vertices = (
+#         (x, y), (x, y + h),
+#         (x + w, y + h), (x + w, y))
 
-    indices = (
-        (0, 1, 2), (0, 2, 3)
-    )
+#     indices = (
+#         (0, 1, 2), (0, 2, 3)
+#     )
 
-    gpu.state.blend_set('ALPHA')
-    shader = gpu.shader.from_builtin('UNIFORM_COLOR') # 3.6 api '2D_UNIFORM_COLOR'
-    batch = batch_for_shader(
-        shader, 'TRIS', {"pos": vertices}, indices=indices)
-    shader.bind()
-    shader.uniform_float("color", rect_color)
-    batch.draw(shader)
+#     gpu.state.blend_set('ALPHA')
+#     shader = gpu.shader.from_builtin('UNIFORM_COLOR') # 3.6 api '2D_UNIFORM_COLOR'
+#     batch = batch_for_shader(
+#         shader, 'TRIS', {"pos": vertices}, indices=indices)
+#     shader.bind()
+#     shader.uniform_float("color", rect_color)
+#     batch.draw(shader)
 
-def update_info(message=[], remove_handlers=True, button=False, btn_txt="", pourcentage=100, redraw_timer=True, rect_color=BdentalColors.default):#[0.4, 0.4, 0.8, 1.0]
-    global DRAW_HANDLERS
+# def BDENTAL_GpuDrawText(message_list=[], remove_handlers=True, button=False, btn_txt="", pourcentage=100, redraw_timer=True, rect_color=BdentalColors.default):#[0.4, 0.4, 0.8, 1.0]
+#     global DRAW_HANDLERS
 
-    if remove_handlers:
-        for _h in DRAW_HANDLERS:
-            bpy.types.SpaceView3D.draw_handler_remove(_h, "WINDOW")
-        DRAW_HANDLERS = []
-    if message:
-        info_handler = gpu_info_footer(
-            text_list=message, button=False, btn_txt="", pourcentage=100, rect_color=rect_color)
-        DRAW_HANDLERS.append(info_handler)
-    if redraw_timer:
-        bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+#     if remove_handlers:
+#         for _h in DRAW_HANDLERS:
+#             bpy.types.SpaceView3D.draw_handler_remove(_h, "WINDOW")
+#         DRAW_HANDLERS = []
+#     if message:
+#         info_handler = gpu_info_footer(
+#             text_list=message, button=False, btn_txt="", pourcentage=100, rect_color=rect_color)
+#         DRAW_HANDLERS.append(info_handler)
+#     if redraw_timer:
+#         bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
 
 def draw_slices_text_2d():
     text_color_rgba = [0.8, 0.6, 0.0, 1.0]
@@ -234,30 +237,111 @@ def update_slices_txt(remove_handlers=True):
     SLICES_TXT_HANDLER.append(slices_text_handler)
     bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
 
-       
+# class BDENTAL_GpuDrawText() :
+#     """gpu draw text in active area 3d"""
+    
+    
+
+#     def __init__(self,
+#                 message_list = [],
+#                 remove_handlers=True,
+#                 button=False,
+#                 pourcentage=100,
+#                 redraw_timer=True,
+#                 rect_color=BdentalColors.default,
+#                 rect_height = 30,
+#                 txt_color = BdentalColors.black,
+#                 btn_txt = "OK",
+#                 info_handler = None
+#                 ):
+        
+#         global DRAW_HANDLERS
+#         self.message_list=message_list
+#         self.remove_handlers=remove_handlers
+#         self.button=button
+#         self.pourcentage=pourcentage
+#         self.redraw_timer=redraw_timer
+#         self.rect_color=rect_color
+#         self.rect_height=rect_height
+#         self.txt_color=txt_color
+#         self.btn_txt=btn_txt
+#         self.info_handler=info_handler
+
+#         if self.remove_handlers:
+#             for _h in DRAW_HANDLERS:
+#                 bpy.types.SpaceView3D.draw_handler_remove(_h, "WINDOW")
+#             DRAW_HANDLERS = []
+#         if self.message_list:
+#             self.gpu_info_footer()
+#             DRAW_HANDLERS.append(self.info_handler)
+            
+        
+
+#     def gpu_info_footer(self):
+        
+#         if self.pourcentage <= 0:
+#             self.pourcentage = 1
+#         if self.pourcentage > 100:
+#             self.pourcentage = 100
+
+#         def draw_callback_function():
+
+#             w = int(bpy.context.area.width * (self.pourcentage/100))
+#             for i, txt in enumerate((reversed(self.message_list))):
+
+#                 self.draw_gpu_rect(0, self.rect_height*i, w, self.rect_height, self.rect_color)
+#                 blf.position(0, 10, 10 + (self.rect_height*i), 0)
+#                 blf.size(BLF_INFO.get("fontid"), BLF_INFO.get("size")) # 3.6 api blf.size(0, 40, 30) -> blf.size(fontid, size)
+#                 r, g, b, a = self.txt_color
+#                 blf.color(0, r, g, b, a)
+#                 blf.draw(0, txt)
+
+#             if self.button:
+#                 self.draw_gpu_rect(w-110, 2, 100, self.rect_height-4, BdentalColors.yellow)
+#                 blf.position(0, w-85, 10, 0)
+#                 blf.size(BLF_INFO.get("fontid"), BLF_INFO.get("size")) # 3.6 api blf.size(0, 40, 30) -> blf.size(fontid, size)
+#                 r, g, b, a = self.txt_color
+#                 blf.color(0, r, g, b, a)
+#                 blf.draw(0, self.btn_txt)
+
+#         self.info_handler = bpy.types.SpaceView3D.draw_handler_add(
+#             draw_callback_function, (), "WINDOW", "POST_PIXEL"
+#         )
+#         bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+
+#     def draw_gpu_rect(self,x, y, w, h, rect_color):
+
+#         vertices = (
+#             (x, y), (x, y + h),
+#             (x + w, y + h), (x + w, y))
+
+#         indices = (
+#             (0, 1, 2), (0, 2, 3)
+#         )
+
+#         gpu.state.blend_set('ALPHA')
+#         shader = gpu.shader.from_builtin('UNIFORM_COLOR') # 3.6 api '2D_UNIFORM_COLOR'
+#         batch = batch_for_shader(
+#             shader, 'TRIS', {"pos": vertices}, indices=indices)
+#         shader.bind()
+#         shader.uniform_float("color", rect_color)
+#         batch.draw(shader)
+
+
+     
 class BDENTAL_OT_AssetBrowserToggle(bpy.types.Operator):
     """ Split area 3d and load asset browser """
 
     bl_idname = "wm.bdental_asset_browser_toggle"
     bl_label = "Bdental Library"
     can_update = False
-    # @classmethod
-    # def poll(cls, context):
-    #     # bdental_main = bpy.data.workspaces.get("Bdental Main")
-    #     # if not bdental_main :
-    #     #     return 0
-    #     # if not context.workspace == bdental_main :
-    #     #     return 0
-    #     return context.workspace.name == "Bdental Main"
+    
     def defer(self):
-        global BDENTAL_LIB_UI_NAME
         params = self.asset_browser_space.params
         if not params:
             return 0
-        
-
         try:
-            params.asset_library_ref = BDENTAL_LIB_UI_NAME 
+            params.asset_library_reference = BDENTAL_LIB_NAME 
             
         except TypeError:
             # If the reference doesn't exist.
@@ -272,13 +356,13 @@ class BDENTAL_OT_AssetBrowserToggle(bpy.types.Operator):
             return {'FINISHED'}
         return {'PASS_THROUGH'}
     def execute(self, context):
-        global BDENTAL_LIB_UI_NAME
+        
 
         if not context.workspace.name == "Bdental Main" :
             txt = ["Cancelled : Please ensure you are in Bdental Main workspace !"]
-            update_info(message=txt, rect_color=BdentalColors.red)
+            BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
             sleep(3)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {"CANCELLED"}
 
         _close = close_asset_browser(context)
@@ -298,13 +382,13 @@ class BDENTAL_OT_SetConfig(bpy.types.Operator):
     bl_label = "Set Bdental Interface"
     bl_options = {"REGISTER", "UNDO"}
 
-    def draw(self, context):
-        message = ["Blender need to restart : Please save your project !"]
-        layout = self.layout
-        layout.alignment = "EXPAND"
-        # layout.alert = True
-        for txt in message :
-            layout.label(text=txt)
+    # def draw(self, context):
+    #     message = ["Blender need to restart : Please save your project !"]
+    #     layout = self.layout
+    #     layout.alignment = "EXPAND"
+    #     # layout.alert = True
+    #     for txt in message :
+    #         layout.label(text=txt)
 
     def execute(self, context):
         # context.preferences.use_preferences_save = False
@@ -318,28 +402,32 @@ class BDENTAL_OT_SetConfig(bpy.types.Operator):
             p.inputs.use_mouse_depth_navigate = True
             p.inputs.use_zoom_to_mouse = True
 
-            add_bdental_libray()
+            # add_bdental_libray()
             bpy.ops.wm.save_userpref()
-            update_info(message=["Bdental Configuration Success."], rect_color=BdentalColors.green)
-            sleep(1)
-            update_info()
+            
+            with context.temp_override(window=context.window_manager.windows[0]):
+                BDENTAL_GpuDrawText(message_list=["Please restart to apply Bdental Configuration."], rect_color=BdentalColors.green)
+                sleep(5)
+                BDENTAL_GpuDrawText()
             # bpy.ops.wm.open_mainfile(filepath = path_to_startup)
             # bpy.ops.wm.save_userpref()
-            t = threading.Thread(
-            target=start_blender_session,
-            args=[],
-            daemon=True,
-            )
-            t.start()
-            sys.exit(0)
+            # t = threading.Thread(
+            # target=start_blender_session,
+            # args=[],
+            # daemon=True,
+            # )
+            # t.start()
+            # sys.exit(0)
         else :
-            update_info(message=["Bdental Configuration failed."], rect_color=BdentalColors.red)
-            sleep(3)
-            update_info()
+            with context.temp_override(window=context.window_manager.windows[0]):
+
+                BDENTAL_GpuDrawText(message_list=["Bdental Configuration failed."], rect_color=BdentalColors.red)
+                sleep(3)
+                BDENTAL_GpuDrawText()
         return{"FINISHED"}
-    def invoke(self, context, event):
-        wm = context.window_manager
-        return wm.invoke_props_dialog(self)
+    # def invoke(self, context, event):
+    #     wm = context.window_manager
+    #     return wm.invoke_props_dialog(self)
 # class BDENTAL_OT_SupportTelegram(bpy.types.Operator):
 #     """ open telegram bdental support link"""
 
@@ -359,9 +447,9 @@ class BDENTAL_OT_SetConfig(bpy.types.Operator):
 #         if not success :
 #             txt = ["Go to Bdental Support : failed!"]
 #             rgba = [1, 0, 0, 1]
-#             update_info(message=txt, rect_color=rgba)
+#             BDENTAL_GpuDrawText(message_list=txt, rect_color=rgba)
 #             sleep(3)
-#             update_info()
+#             BDENTAL_GpuDrawText()
 #             return {"CANCELLED"}
 #         return{"FINISHED"}
 
@@ -415,7 +503,7 @@ class BDENTAL_OT_AutoAlignIcp(bpy.types.Operator):
 
     def execute(self, context):
         # message = ["Automatic Alignement Processing ..."]
-        # update_info(message=message)
+        # BDENTAL_GpuDrawText(message_list=message)
         to_obj = context.object
         from_obj = [
             obj for obj in context.selected_objects if obj is not to_obj][0]
@@ -441,9 +529,9 @@ class BDENTAL_OT_AutoAlignIcp(bpy.types.Operator):
         to_obj.select_set(True)
         context.view_layer.objects.active = to_obj
         # message = ["Automatic Alignement Done !"]
-        # update_info(message=message)
+        # BDENTAL_GpuDrawText(message_list=message)
         # sleep(1)
-        # update_info()
+        # BDENTAL_GpuDrawText()
         return{"FINISHED"}
 
 
@@ -476,9 +564,9 @@ class BDENTAL_OT_CleanMeshIterative(bpy.types.Operator):
         non_manifold_count = count_non_manifold_verts(obj)
         if not non_manifold_count:
             message = ["Mesh is manifold"]
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             sleep(2)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {"CANCELLED"}
 
         merge_verts(obj, threshold=0.001, all=True)
@@ -783,7 +871,7 @@ class BDENTAL_OT_add_3d_text(bpy.types.Operator):
         bpy.context.scene.tool_settings.use_snap_align_rotation = True
         bpy.context.scene.tool_settings.use_snap_rotate = True
 
-        update_info(["Press ESC to cancel, ENTER to confirm"])
+        BDENTAL_GpuDrawText(["Press ESC to cancel, ENTER to confirm"])
 
         # run modal
         context.window_manager.modal_handler_add(self)
@@ -797,13 +885,13 @@ class BDENTAL_OT_add_3d_text(bpy.types.Operator):
                 bpy.data.objects.remove(self.text_ob)
             except:
                 pass
-            update_info(["Cancelled ./"])
+            BDENTAL_GpuDrawText(["Cancelled ./"])
             sleep(1)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {'CANCELLED'}
         
         elif event.type in {'RET'} and event.value == "PRESS":
-            update_info(["3D Text processing..."])
+            BDENTAL_GpuDrawText(["3D Text processing..."])
             self.text_ob.select_set(True)
             self.target.select_set(True)
             remesh_modif = self.text_ob.modifiers.new("REMESH", "REMESH")
@@ -824,9 +912,9 @@ class BDENTAL_OT_add_3d_text(bpy.types.Operator):
 
             bpy.context.scene.tool_settings.use_snap = False
             bpy.ops.object.select_all(action="DESELECT")
-            update_info(["Finished ./"])
+            BDENTAL_GpuDrawText(["Finished ./"])
             sleep(1)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {'FINISHED'}
         return {'RUNNING_MODAL'}
 
@@ -845,7 +933,7 @@ class BDENTAL_OT_add_3d_text(bpy.types.Operator):
 
         # bpy.ops.object.convert(target="MESH")
 
-        # update_info(["Text Engraving ..."])
+        # BDENTAL_GpuDrawText(["Text Engraving ..."])
         for mat_slot in self.text_ob.material_slots:
             bpy.ops.object.material_slot_remove()
 
@@ -872,7 +960,7 @@ class BDENTAL_OT_add_3d_text(bpy.types.Operator):
         bpy.data.objects.remove(self.text_ob)
         context.scene.BDENTAL_Props.text = "BDental"
         # sleep(1)
-        # update_info(["Target Remesh..."])
+        # BDENTAL_GpuDrawText(["Target Remesh..."])
         # bpy.ops.object.select_all(action="DESELECT")
         # self.target.select_set(True)
         # context.view_layer.objects.active = self.target
@@ -885,7 +973,7 @@ class BDENTAL_OT_add_3d_text(bpy.types.Operator):
 
         # bpy.ops.object.convert(target="MESH")
 
-        # update_info(["Text Embossing ..."])
+        # BDENTAL_GpuDrawText(["Text Embossing ..."])
         # join
         # self.text_ob.select_set(True)
         # bpy.ops.object.join()
@@ -1117,7 +1205,7 @@ class BDENTAL_OT_OpenManual(bpy.types.Operator):
 
     def execute(self, context):
 
-        Manual_Path = join(addon_dir, "Resources", "BDENTAL User Manual.pdf")
+        Manual_Path = join(ADDON_DIR, "Resources", "BDENTAL User Manual.pdf")
         if exists(Manual_Path):
             os.startfile(Manual_Path)
             return {"FINISHED"}
@@ -1170,7 +1258,7 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
         BDENTAL_Props = context.scene.BDENTAL_Props
         if BDENTAL_Props.DataType == "DICOM Series":
             message = ["Reading DICOM Series ..."]
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
 
             UserProjectDir = AbsPath(BDENTAL_Props.UserProjectDir)
             UserDcmDir = AbsPath(BDENTAL_Props.UserDcmDir)
@@ -1185,23 +1273,23 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
                 if not exists(UserProjectDir):
                     txt = [
                         " Project Directory is not valid ! "]
-                    update_info(message=txt, rect_color=BdentalColors.red)
+                    BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
                     sleep(2)
-                    update_info()
+                    BDENTAL_GpuDrawText()
                     return {"CANCELLED"}
 
                 if not exists(UserDcmDir):
                     txt = [" The Selected dicom directory is not valid ! "]
-                    update_info(message=txt, rect_color=BdentalColors.red)
+                    BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
                     sleep(2)
-                    update_info()
+                    BDENTAL_GpuDrawText()
                     return {"CANCELLED"}
 
                 if not os.listdir(UserDcmDir):
                     txt = ["No files found in dicom directory ! "]
-                    update_info(message=txt, rect_color=BdentalColors.red)
+                    BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
                     sleep(2)
-                    update_info()
+                    BDENTAL_GpuDrawText()
                     return {"CANCELLED"}
 
                 Series_reader = sitk.ImageSeriesReader()
@@ -1215,9 +1303,9 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
                     
                 except:
                     txt = ["scan data is not valid !"]
-                    update_info(message=txt, rect_color=BdentalColors.red)
+                    BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
                     sleep(2)
-                    update_info()
+                    BDENTAL_GpuDrawText()
                     return {"CANCELLED"}
 
                 tags = dict(
@@ -1317,11 +1405,11 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
             if n == 1 :
                 txt = ["1 dicom serie found."]
             
-            update_info(message=txt, rect_color=BdentalColors.green)
+            BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.green)
 
         else:
             txt = ["Reading 3D Image File ..."]
-            update_info(message=txt)
+            BDENTAL_GpuDrawText(message_list=txt)
             
             UserProjectDir = AbsPath(BDENTAL_Props.UserProjectDir)
             UserImageFile = AbsPath(BDENTAL_Props.UserImageFile)
@@ -1335,17 +1423,17 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
                 if not exists(UserProjectDir):
                     txt = [
                         " The Selected Project Directory is not valid ! "]
-                    update_info(message=txt, rect_color=BdentalColors.red)
+                    BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
                     sleep(2)
-                    update_info()
+                    BDENTAL_GpuDrawText()
                     return {"CANCELLED"}
 
                 if not exists(UserImageFile):
                     txt = [
                         " The Selected 3D Image filepath is not valid ! "]
-                    update_info(message=txt, rect_color=BdentalColors.red)
+                    BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
                     sleep(2)
-                    update_info()
+                    BDENTAL_GpuDrawText()
                     return {"CANCELLED"}
 
                 try:
@@ -1360,9 +1448,9 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
                     print("path : ", abspath(UserImageFile))
                     print("error : ", e)
                     txt = [f"Can't open 3D Image file !"]
-                    update_info(message=txt, rect_color=BdentalColors.red)
+                    BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
                     sleep(2)
-                    update_info()
+                    BDENTAL_GpuDrawText()
                     return {"CANCELLED"}
 
                 tags = dict(
@@ -1396,7 +1484,7 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
                 bpy.ops.wm.save_mainfile()
                 BDENTAL_Props.UserProjectDir = RelPath(UserProjectDir)
                 txt = ["Finished."]
-                update_info(message=txt, rect_color=BdentalColors.green)
+                BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.green)
 
                 # Save Blend File :
                 # ProjectName = BDENTAL_Props.ProjectNameProp
@@ -1406,7 +1494,7 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
                 # BDENTAL_Props.UserProjectDir = RelPath(UserProjectDir)
 
         sleep(1)
-        update_info()
+        BDENTAL_GpuDrawText()
         bpy.ops.wm.save_mainfile()
 
         return {"FINISHED"}
@@ -1975,7 +2063,7 @@ class BDENTAL_OT_Volume_Render(bpy.types.Operator):
 
     def execute(self, context):
         message = ["Loading SCAN data ..."]
-        update_info(message)
+        BDENTAL_GpuDrawText(message)
 
         Start = tpc()
         print(message)
@@ -2000,9 +2088,9 @@ class BDENTAL_OT_Volume_Render(bpy.types.Operator):
 
                 if not "Series" in Serie:
                     message = [" Please Organize DICOM data and retry ! "]
-                    update_info(message)
+                    BDENTAL_GpuDrawText(message)
                     sleep(2)
-                    update_info()
+                    BDENTAL_GpuDrawText()
                     return {"CANCELLED"}
 
                 DcmOrganizeDict = eval(BDENTAL_Props.DcmOrganize)
@@ -2017,18 +2105,18 @@ class BDENTAL_OT_Volume_Render(bpy.types.Operator):
             UserImageFile = AbsPath(BDENTAL_Props.UserImageFile)
             if not exists(UserImageFile):
                 message = [" The Selected Image File Path is not valid ! "]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 sleep(2)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {"CANCELLED"}
 
             DcmInfo, message = Load_3DImage_function(
                 context, self.q, "FAST")
 
         if message:
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             sleep(3)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {"CANCELLED"}
         else:
 
@@ -2061,19 +2149,19 @@ class BDENTAL_OT_Volume_Render(bpy.types.Operator):
             
             sleep(3) # for shaders to load
             txt = ["Scan loaded. "]
-            update_info(message=txt, rect_color=BdentalColors.green)
+            BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.green)
             sleep(2)
             
             
             if self.slices :
                 message = ["Scan Slices processing ..."]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
 
                 bpy.ops.wm.bdental_addslices(open_slices_view=False)
 
             
             # os.system("cls")
-            update_info()
+            BDENTAL_GpuDrawText()
             Finish = tpc()
             print(f"Voxel rendered (Time : {Finish-Start}")
             bpy.ops.wm.save_mainfile()
@@ -2111,7 +2199,7 @@ class BDENTAL_OT_AddSlices(bpy.types.Operator):
         # message = [
         #     " Generating MPR Slices views ... ",
         # ]
-        # update_info(message)
+        # BDENTAL_GpuDrawText(message)
         BDENTAL_Props = bpy.context.scene.BDENTAL_Props
 
         pointer_check_list = [
@@ -2162,9 +2250,9 @@ class BDENTAL_OT_AddSlices(bpy.types.Operator):
                 " Can't find dicom data!",
                 " Check for nrrd file in the Project Directory ! ",
             ]
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             sleep(2)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {"CANCELLED"}
         
         SlicesDir = BDENTAL_Props.SlicesDir
@@ -2215,7 +2303,7 @@ class BDENTAL_OT_AddSlices(bpy.types.Operator):
         # with bpy.context.temp_override(active_object=obj):
         # bpy.ops.screen.space_context_cycle(direction='NEXT')
         
-        # update_info()
+        # BDENTAL_GpuDrawText()
         if self.open_slices_view :
             context.window.workspace = bpy.data.workspaces["Bdental Slicer"]
         return {"FINISHED"}
@@ -2440,14 +2528,14 @@ class BDENTAL_OT_MultiTreshSegment(bpy.types.Operator):
                 " Please check at least 1 segmentation ! ",
                 "(Soft - Bone - Teeth)",
             ]
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             sleep(3)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {"CANCELLED"}
 
         message = ["Dicom segmentation processing ...",
                    f"Active Segments : {ActiveSegmentsList}"]
-        update_info(message)
+        BDENTAL_GpuDrawText(message)
         sleep(1)
 
         self.Vol = context.object
@@ -2459,9 +2547,9 @@ class BDENTAL_OT_MultiTreshSegment(bpy.types.Operator):
         if not exists(self.Nrrd255Path):
 
             message = [" 3D Image File not Found in Project Folder ! "]
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             sleep(3)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {"CANCELLED"}
 
         ############### step 1 : Reading DICOM #########################
@@ -2497,7 +2585,7 @@ class BDENTAL_OT_MultiTreshSegment(bpy.types.Operator):
         while count < self.MeshesCount:
             if not self.message_queue.empty():
                 message = self.message_queue.get()
-                update_info(message=message)
+                BDENTAL_GpuDrawText(message_list=message)
                 sleep(1)
             if not self.Exported.empty():
                 (
@@ -2511,7 +2599,7 @@ class BDENTAL_OT_MultiTreshSegment(bpy.types.Operator):
                     else:
                         break
                 message = [f"{Segment} Mesh import ..."]
-                update_info(message=message)
+                BDENTAL_GpuDrawText(message_list=message)
                 obj = self.ImportMeshStl(
                     Segment, SegmentStlPath, SegmentColor
                 )
@@ -2562,9 +2650,9 @@ class BDENTAL_OT_MultiTreshSegment(bpy.types.Operator):
 
         self.Vol.hide_set(True)
         message = [" Dicom Segmentation Finished ! "]
-        update_info(message=message)
+        BDENTAL_GpuDrawText(message_list=message)
         sleep(2)
-        update_info()
+        BDENTAL_GpuDrawText()
         bpy.ops.wm.save_mainfile()
 
         return {"FINISHED"}
@@ -3354,9 +3442,9 @@ class BDENTAL_OT_AddImplant(bpy.types.Operator):
                 obj for obj in context.scene.objects if f"BDENTAL_IMPLANT_{self.tooth_number}_" in obj.name]
             if exists:
                 message = [f"implant number {self.tooth_number} already exists!"]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 sleep(3)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {"CANCELLED"}
             implant_type = "up" if self.tooth_number < 31 else "low"
             implants_coll = add_collection("Bdental Implants")
@@ -3549,9 +3637,9 @@ class BDENTAL_OT_RemoveImplant(bpy.types.Operator):
                 bpy.data.objects.remove(o)
         
         txt = [f"Bdental implant {remove_code} removed."]
-        update_info(message=txt, rect_color=BdentalColors.green)
+        BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.green)
         sleep(1)
-        update_info()
+        BDENTAL_GpuDrawText()
         return {"FINISHED"}
 
 
@@ -3827,7 +3915,7 @@ class BDENTAL_OT_FlyNext(bpy.types.Operator):
             txt = [f"Pointer at implant ({tooth_number})"]
         else :
             txt = [f"Pointer at {active_obj.name.split('_ADD_')[-1]}"]
-        update_info(message=txt)
+        BDENTAL_GpuDrawText(message_list=txt)
         
 
         return {"FINISHED"}
@@ -3915,7 +4003,7 @@ class BDENTAL_OT_FlyPrevious(bpy.types.Operator):
         else :
             txt = [f"Pointer at {active_obj.name.split('_ADD_')[-1]}"]
         
-        update_info(message=txt)
+        BDENTAL_GpuDrawText(message_list=txt)
         
 
         return {"FINISHED"}
@@ -3928,10 +4016,11 @@ class BDENTAL_OT_RemoveInfoFooter(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
+        from ..utils import DRAW_HANDLERS
         return DRAW_HANDLERS != []
 
     def execute(self, context):
-        update_info()
+        BDENTAL_GpuDrawText()
         return {"FINISHED"}
 
 
@@ -4365,16 +4454,16 @@ class BDENTAL_OT_SplintGuide(bpy.types.Operator):
                 space3D.overlay.show_outline_selected = True
 
                 message = ["CANCELLED"]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 sleep(2)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {"CANCELLED"}
 
         elif event.type == "RET" and self.counter == 2:
             if event.value == ("PRESS"):
 
                 message = ["Guide Splint Remeshing ..."]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 context.view_layer.objects.active = self.splint
                 bpy.ops.object.mode_set(mode="OBJECT")
                 bpy.ops.object.select_all(action="DESELECT")
@@ -4384,20 +4473,20 @@ class BDENTAL_OT_SplintGuide(bpy.types.Operator):
                 bpy.ops.object.convert(target='MESH', keep_original=False)
 
                 message = ["FINISHED ./"]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 sleep(1)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {"FINISHED"}
 
         elif event.type == "RET" and self.counter == 1:
             if event.value == ("PRESS"):
                 self.counter += 1
                 message = ["Cutting Mesh..."]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 self.cut_mesh(context)
 
                 message = [f"Creating Guide Splint {self.splint_suffix} ..."]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 self.splint(context)
 
                 bpy.ops.object.mode_set(mode='SCULPT')
@@ -4410,7 +4499,7 @@ class BDENTAL_OT_SplintGuide(bpy.types.Operator):
 
                 message = [
                     f"(Optional) : Please smooth Guide Splint and press ENTER ..."]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 return {"RUNNING_MODAL"}
 
         elif event.type == ("LEFTMOUSE") and self.counter == 1:
@@ -4484,7 +4573,7 @@ class BDENTAL_OT_SplintGuide(bpy.types.Operator):
             bpy.ops.wm.tool_set_by_id( name="builtin.cursor")
         context.window_manager.modal_handler_add(self)
         message = ["please draw Guide border", "when done press ENTER"]
-        update_info(message)
+        BDENTAL_GpuDrawText(message)
         return {"RUNNING_MODAL"}
 
 
@@ -4784,16 +4873,16 @@ class BDENTAL_OT_SplintGuideGeom(bpy.types.Operator):
                 space3D.overlay.show_outline_selected = True
 
                 message = ["CANCELLED"]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 sleep(2)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {"CANCELLED"}
 
         elif event.type == "RET" and self.counter == 2:
             if event.value == ("PRESS"):
 
                 message = ["Guide Splint Remeshing ..."]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 context.view_layer.objects.active = self.splint
                 bpy.ops.object.mode_set(mode="OBJECT")
                 bpy.ops.object.select_all(action="DESELECT")
@@ -4804,20 +4893,20 @@ class BDENTAL_OT_SplintGuideGeom(bpy.types.Operator):
                 bpy.ops.object.convert(target='MESH', keep_original=False)
 
                 message = ["FINISHED ./"]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 sleep(1)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {"FINISHED"}
 
         elif event.type == "RET" and self.counter == 1:
             if event.value == ("PRESS"):
                 self.counter += 1
                 message = ["Cutting Mesh..."]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 self.cut_mesh(context)
 
                 message = [f"Creating Guide Splint {self.splint_suffix} ..."]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 self.splint(context)
                 area3D, space3D , region_3d = CtxOverride(context)
                 with bpy.context.temp_override(area= area3D, space_data=space3D, region = region_3d):
@@ -4832,7 +4921,7 @@ class BDENTAL_OT_SplintGuideGeom(bpy.types.Operator):
 
                 message = [
                     f"(Optional) : Please smooth Guide Splint and press ENTER ..."]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 return {"RUNNING_MODAL"}
 
         elif event.type == ("LEFTMOUSE") and self.counter == 1:
@@ -4873,7 +4962,7 @@ class BDENTAL_OT_SplintGuideGeom(bpy.types.Operator):
 
     def execute(self, context):
         message = ["Please wait, Preparing base mesh..."]
-        update_info(message)
+        BDENTAL_GpuDrawText(message)
         guide_components_coll = add_collection("GUIDE Components")
         self.scn = context.scene
         self.counter = 0
@@ -4910,7 +4999,7 @@ class BDENTAL_OT_SplintGuideGeom(bpy.types.Operator):
             bpy.ops.wm.tool_set_by_id( name="builtin.cursor")
         context.window_manager.modal_handler_add(self)
         message = ["please draw Guide border", "when done press ENTER"]
-        update_info(message, rect_color=BdentalColors.green)
+        BDENTAL_GpuDrawText(message, rect_color=BdentalColors.green)
         return {"RUNNING_MODAL"}
 
 
@@ -4936,9 +5025,9 @@ class BDENTAL_OT_GuideFinalise(bpy.types.Operator):
 
         # if not guide_components_names :
         #     message = ["Cancelled : Can't find Guide Components !"]
-        #     update_info(message)
+        #     BDENTAL_GpuDrawText(message)
         #     sleep(3)
-        #     update_info()
+        #     BDENTAL_GpuDrawText()
         #     return {"CANCELLED"}
 
         # guide_components = []
@@ -4958,13 +5047,13 @@ class BDENTAL_OT_GuideFinalise(bpy.types.Operator):
                 cut_components.append(obj.name)
         if not add_components:
             message = ["Cancelled : Can't find Guide _ADD_ Components !"]
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             sleep(3)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {"CANCELLED"}
 
         message = ["Preparing Guide _ADD_ Components ..."]
-        update_info(message)
+        BDENTAL_GpuDrawText(message)
         context.view_layer.objects.active = bpy.data.objects[add_components[0]]
         bpy.ops.object.mode_set(mode="OBJECT")
         bpy.ops.object.select_all(action='DESELECT')
@@ -5043,14 +5132,14 @@ class BDENTAL_OT_GuideFinalise(bpy.types.Operator):
 
             message = ["Warning : Can't find Guide _CUT_ Components !",
                        "Guide will be exported without cutting !"]
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             sleep(3)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {"FINISHED"}
 
         bpy.ops.object.select_all(action='DESELECT')
         message = ["Preaparing Cutters ..."]
-        update_info(message)
+        BDENTAL_GpuDrawText(message)
         for i, name in enumerate(cut_components):
             obj = bpy.data.objects.get(name)
             obj.hide_set(False)
@@ -5082,7 +5171,7 @@ class BDENTAL_OT_GuideFinalise(bpy.types.Operator):
             #     remesh.voxel_size = 0.1
             #     bpy.ops.object.convert(target='MESH', keep_original=False)
             message = [f"Making Cuts {i+1}/{len(cut_components)}..."]
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
 
             bpy.ops.object.select_all(action='DESELECT')
             context.view_layer.objects.active = guide
@@ -5131,7 +5220,7 @@ class BDENTAL_OT_GuideFinalise(bpy.types.Operator):
 
         # if guide and guide_cutter :
         #     message = ["Guide Processing -> Boolean operation ..."]
-        #     update_info(message)
+        #     BDENTAL_GpuDrawText(message)
 
         #     bpy.ops.object.select_all(action='DESELECT')
         #     guide.select_set(True)
@@ -5154,9 +5243,9 @@ class BDENTAL_OT_GuideFinalise(bpy.types.Operator):
         end = tpc()
 
         message = [f"Finished in {round(end-start)} seconds."]
-        update_info(message)
+        BDENTAL_GpuDrawText(message)
         sleep(3)
-        update_info()
+        BDENTAL_GpuDrawText()
         print(message)
         return {"FINISHED"}
 
@@ -5194,7 +5283,7 @@ class BDENTAL_OT_AddGuideCuttersFromSleeves(bpy.types.Operator):
         if event.type == "RET" and self.counter == 1:
             if event.value == ("PRESS"):
                 message = ["Cutting Apply ..."]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 self.target.hide_set(False)
                 self.target.hide_viewport = False
                 context.view_layer.objects.active = self.target
@@ -5211,16 +5300,16 @@ class BDENTAL_OT_AddGuideCuttersFromSleeves(bpy.types.Operator):
                     sleeve.hide_set(False)
 
                 message = ["Finished ."]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 sleep(2)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {"FINISHED"}
 
         elif event.type == "RET" and self.counter == 0:
             if event.value == ("PRESS"):
                 self.counter += 1
                 message = ["making Boolean ..."]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 self.target.hide_set(False)
                 self.target.hide_viewport = False
                 context.view_layer.objects.active = self.target
@@ -5248,7 +5337,7 @@ class BDENTAL_OT_AddGuideCuttersFromSleeves(bpy.types.Operator):
                 bool.operation = "DIFFERENCE"
 
                 message = ["Please Control cuttings", "when done press ENTER"]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 return {"RUNNING_MODAL"}
 
         return {"RUNNING_MODAL"}
@@ -5290,7 +5379,7 @@ class BDENTAL_OT_AddGuideCuttersFromSleeves(bpy.types.Operator):
             context.window_manager.modal_handler_add(self)
             message = ["please set cutters scale and position",
                        "when done press ENTER"]
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             return {"RUNNING_MODAL"}
 
 
@@ -5317,7 +5406,7 @@ class BDENTAL_OT_guide_3d_text(bpy.types.Operator):
         return wm.invoke_props_dialog(self)
 
     def execute(self, context):
-        update_info(
+        BDENTAL_GpuDrawText(
             ["Press <TAB> to edit text, <ESC> to cancel, <T> to confirm"])
         BDENTAL_Props = context.scene.BDENTAL_Props
         self.target = context.object
@@ -5390,9 +5479,9 @@ class BDENTAL_OT_guide_3d_text(bpy.types.Operator):
             area3D, space3D , region_3d = CtxOverride(context)
             with bpy.context.temp_override(area= area3D, space_data=space3D, region = region_3d):
                 bpy.ops.wm.tool_set_by_id( name="builtin.select")
-            update_info(["Cancelled"])
+            BDENTAL_GpuDrawText(["Cancelled"])
             sleep(1)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {'CANCELLED'}
         if event.type in {'T'}:
             if event.value == 'PRESS':
@@ -5403,14 +5492,14 @@ class BDENTAL_OT_guide_3d_text(bpy.types.Operator):
 
                 bpy.context.scene.tool_settings.use_snap = False
                 bpy.ops.wm.tool_set_by_id( name="builtin.select")
-                update_info(["Finished"])
+                BDENTAL_GpuDrawText(["Finished"])
                 sleep(1)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {'FINISHED'}
         return {'RUNNING_MODAL'}
 
     def text_to_mesh(self, context):
-        update_info(["Text Remesh..."])
+        BDENTAL_GpuDrawText(["Text Remesh..."])
         with context.temp_override(active_object=self.text_ob):
         
             remesh_modif = self.text_ob.modifiers.new("REMESH", "REMESH")
@@ -5472,9 +5561,9 @@ class BDENTAL_OT_GuideAddComponent(bpy.types.Operator):
                 area3D, space3D , region_3d = CtxOverride(context)
                 with bpy.context.temp_override(area= area3D, space_data=space3D, region = region_3d):
                     bpy.ops.wm.tool_set_by_id( name="builtin.select")
-                update_info(["Cancelled"])
+                BDENTAL_GpuDrawText(["Cancelled"])
                 sleep(1)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {'CANCELLED'}
         elif event.type in {'RET'}:
             if event.value == 'RELEASE':
@@ -5498,7 +5587,7 @@ class BDENTAL_OT_GuideAddComponent(bpy.types.Operator):
                     with bpy.context.temp_override(area= area3D, space_data=space3D, region = region_3d):
                         bpy.ops.wm.tool_set_by_id(
                             name="builtin.transform")
-                    update_info()
+                    BDENTAL_GpuDrawText()
 
                 elif self.guide_component == "Sphere":
                     bpy.ops.mesh.primitive_uv_sphere_add(
@@ -5519,7 +5608,7 @@ class BDENTAL_OT_GuideAddComponent(bpy.types.Operator):
                     with bpy.context.temp_override(area= area3D, space_data=space3D, region = region_3d):
                         bpy.ops.wm.tool_set_by_id(
                         name="builtin.transform")
-                    update_info()
+                    BDENTAL_GpuDrawText()
 
                 elif self.guide_component == "Cylinder":
                     bpy.ops.mesh.primitive_cylinder_add(
@@ -5541,7 +5630,7 @@ class BDENTAL_OT_GuideAddComponent(bpy.types.Operator):
                     with bpy.context.temp_override(area= area3D, space_data=space3D, region = region_3d):
                         bpy.ops.wm.tool_set_by_id(
                             name="builtin.transform")
-                    update_info()
+                    BDENTAL_GpuDrawText()
 
                 elif self.guide_component == "3D Text":
                     if self.component_type == "CUT":
@@ -5581,9 +5670,9 @@ class BDENTAL_OT_GuideAddComponent(bpy.types.Operator):
         if self.guide_component == "3D Text" and (not context.object or not context.object.select_get()):
             message = [
             "Please Select target object and retry"]
-            update_info(message=message, rect_color=BdentalColors.red)
+            BDENTAL_GpuDrawText(message_list=message, rect_color=BdentalColors.red)
             sleep(3)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {"CANCELLED"}
         
         message = [
@@ -5592,7 +5681,7 @@ class BDENTAL_OT_GuideAddComponent(bpy.types.Operator):
         with bpy.context.temp_override(area= area3D, space_data=space3D, region = region_3d):
             bpy.ops.wm.tool_set_by_id( name="builtin.cursor")
 
-        update_info(message)
+        BDENTAL_GpuDrawText(message)
        
         context.window_manager.modal_handler_add(self)
         return {"RUNNING_MODAL"}
@@ -5618,7 +5707,7 @@ class BDENTAL_OT_AddCustomSleeveCutter(bpy.types.Operator):
             message = [
             "Select target implant(s)/Fixing sleeves" , "select sleeve cutter from Bdental Library", 
             "<ENTER> : confirm  <ESC> : cancel"]
-            update_info(message=message)
+            BDENTAL_GpuDrawText(message_list=message)
             self.can_update = False
 
         if not event.type in {'ESC', 'RET'}:
@@ -5627,9 +5716,9 @@ class BDENTAL_OT_AddCustomSleeveCutter(bpy.types.Operator):
         elif event.type in {'ESC'}:
             if event.value == 'PRESS':
                 close_asset_browser(context, area=self.asset_browser_area)
-                update_info(["Cancelled"])
+                BDENTAL_GpuDrawText(["Cancelled"])
                 sleep(2)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {'CANCELLED'}
         elif event.type in {'RET'}:
             if event.value == 'RELEASE':
@@ -5637,12 +5726,12 @@ class BDENTAL_OT_AddCustomSleeveCutter(bpy.types.Operator):
                 success, message, error, directory,filename = result.values()
                 if not success :
                     if error == 1:
-                        update_info(message = message, rect_color=BdentalColors.red)
+                        BDENTAL_GpuDrawText(message = message, rect_color=BdentalColors.red)
                         sleep(2)
-                        update_info()
+                        BDENTAL_GpuDrawText()
                         return {'CANCELLED'}
                     elif error == 2:
-                        update_info(message = message, rect_color=BdentalColors.red)
+                        BDENTAL_GpuDrawText(message = message, rect_color=BdentalColors.red)
                         return {'RUNNING_MODAL'}
 
                 else:
@@ -5688,7 +5777,7 @@ class BDENTAL_OT_AddCustomSleeveCutter(bpy.types.Operator):
                         
                     bpy.data.objects.remove(asset)
                     bpy.ops.object.select_all(action='DESELECT')
-                    update_info()
+                    BDENTAL_GpuDrawText()
                     close_asset_browser(context, area=self.asset_browser_area)
                             
                     return {'FINISHED'}
@@ -5719,9 +5808,9 @@ class BDENTAL_OT_AddCustomSleeveCutter(bpy.types.Operator):
             objs = self.implts + self.fixing_sleeves
             if not  objs:
                 message = ["Cancelled :", "Please add implants/fixing pin first and retry"]
-                update_info(message=message, rect_color=BdentalColors.red)
+                BDENTAL_GpuDrawText(message_list=message, rect_color=BdentalColors.red)
                 sleep(3)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {"CANCELLED"}
 
             self.asset_browser_area , self.asset_browser_space = open_asset_browser()
@@ -5776,9 +5865,9 @@ class BDENTAL_OT_AddFixingPin(bpy.types.Operator):
                 with bpy.context.temp_override(area= area3D, space_data=space3D, region = region_3d):
                     bpy.ops.wm.tool_set_by_id( name="builtin.select")
                 message = ["Cancelled"]
-                update_info(message=message, rect_color=BdentalColors.green)
+                BDENTAL_GpuDrawText(message_list=message, rect_color=BdentalColors.green)
                 sleep(1)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {'CANCELLED'}
         elif event.type in {'RET'}:
             if event.value == 'RELEASE':
@@ -5842,7 +5931,7 @@ class BDENTAL_OT_AddFixingPin(bpy.types.Operator):
                 bpy.ops.wm.bdental_lock_to_pointer()
                 message = [f"{pin.name} added.",
                     "<Left click> : Set position", "<ENTER> add pin  <ESC> to cancell"]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
 
                 return {'RUNNING_MODAL'}
         return {'RUNNING_MODAL'}
@@ -5863,7 +5952,7 @@ class BDENTAL_OT_AddFixingPin(bpy.types.Operator):
         with bpy.context.temp_override(area= area3D, space_data=space3D, region = region_3d):
             bpy.ops.wm.tool_set_by_id( name="builtin.cursor")
 
-        update_info(message)
+        BDENTAL_GpuDrawText(message)
        
         context.window_manager.modal_handler_add(self)
         return {"RUNNING_MODAL"}
@@ -6078,15 +6167,15 @@ class BDENTAL_OT_ModelBase(bpy.types.Operator):
                 "Operation cancelled !",
                 "Can't make model base from Closed mesh.",
             ]
-            update_info(message=txt, rect_color=BdentalColors.red)
+            BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
             sleep(3)
-            update_info()
+            BDENTAL_GpuDrawText()
 
             return {"CANCELLED"}
 
         else:
             txt = ["Processing ..."]
-            update_info(message=txt)
+            BDENTAL_GpuDrawText(message_list=txt)
 
             BaseHeight = self.BaseHeight
 
@@ -6181,7 +6270,7 @@ class BDENTAL_OT_ModelBase(bpy.types.Operator):
             NonManifoldVerts = count_non_manifold_verts(obj)
             if NonManifoldVerts :
                 txt = ["Base model have bad geometry remeshing ..."]
-                update_info(message=txt)
+                BDENTAL_GpuDrawText(message_list=txt)
                 remesh = obj.modifiers.new("Remesh", "REMESH")
                 remesh.mode = "SHARP"
                 remesh.octree_depth = 8
@@ -6191,7 +6280,7 @@ class BDENTAL_OT_ModelBase(bpy.types.Operator):
             
             if self.HollowModel:
                 txt = ["Processing Hollowed Model ..."]
-                update_info(message=txt)
+                BDENTAL_GpuDrawText(message_list=txt)
                 bpy.ops.wm.bdental_hollow_model(thikness=2)
                 HollowModel = context.object
                 for slot in HollowModel.material_slots:
@@ -6234,9 +6323,9 @@ class BDENTAL_OT_ModelBase(bpy.types.Operator):
             if self.HollowModel :
                 txt = ["Base and hollowed models created successfully"]
             
-            update_info(message=txt, rect_color=BdentalColors.green)
+            BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.green)
             sleep(3)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -6274,9 +6363,9 @@ class BDENTAL_OT_hollow_model(bpy.types.Operator):
         #     ]
         #     print(txt)
         #     if self.display_info :
-        #         update_info(message=txt, rect_color=BdentalColors.red)
+        #         BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
         #         sleep(3)
-        #         update_info()
+        #         BDENTAL_GpuDrawText()
 
         #     return {"CANCELLED"}
 
@@ -6397,9 +6486,9 @@ class BDENTAL_OT_BlockModel(bpy.types.Operator):
         SurveyInfo_Dict = eval(BDENTAL_Props.SurveyInfo)
         if not Pointer in SurveyInfo_Dict.keys():
             message = ["Please Survey Model before Blockout !"]
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             sleep(2)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {"CANCELLED"}
         else:
             wm = context.window_manager
@@ -6560,7 +6649,7 @@ class BDENTAL_OT_BlockoutNew(bpy.types.Operator):
 
         if non_manifold:
             message = ["Adding mesh base ..."]
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             bpy.ops.object.mode_set(mode="EDIT")
             bpy.ops.mesh.extrude_region_move()
             bpy.ops.object.mode_set(mode="OBJECT")
@@ -6597,7 +6686,7 @@ class BDENTAL_OT_BlockoutNew(bpy.types.Operator):
             non_manifold = [v for v in obj.data.vertices if v.select]
             if non_manifold:
                 message = ["Remeshing mesh base ..."]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 remesh = obj.modifiers.new("Remesh", "REMESH")
                 remesh.octree_depth = 8
                 remesh.mode = "SHARP"
@@ -6629,7 +6718,7 @@ class BDENTAL_OT_BlockoutNew(bpy.types.Operator):
             v.co = v.co + (offset_z * self.undercuts_vector.normalized())
 
         message = ["Remeshing Blocked model ..."]
-        update_info(message)
+        BDENTAL_GpuDrawText(message)
 
         modif_remesh = self.blocked.modifiers.new("remesh", type="REMESH")
         modif_remesh.voxel_size = 0.2
@@ -6640,9 +6729,9 @@ class BDENTAL_OT_BlockoutNew(bpy.types.Operator):
         if not self.target.get("undercuts_vector") or not self.target.get("undercuts_view_rotation_mtx"):
             message = ["Operation Cancelled",
                        "Please survey the model from view first"]
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             sleep(2)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {"CANCELLED"}
         self.undercuts_vector = Vector(self.target["undercuts_vector"])
         self.view_rotation_mtx = Matrix(
@@ -6656,7 +6745,7 @@ class BDENTAL_OT_BlockoutNew(bpy.types.Operator):
     def execute(self, context):
 
         message = ["Making duplicate tight mesh..."]
-        update_info(message)
+        BDENTAL_GpuDrawText(message)
 
         offset = self.printing_offset
         bpy.ops.object.mode_set(mode="OBJECT")
@@ -6694,12 +6783,12 @@ class BDENTAL_OT_BlockoutNew(bpy.types.Operator):
             displace.mid_level = 0
             displace.strength = offset
             message = ["displacement applied = " + str(round(offset, 2))]
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
 
         bpy.ops.object.convert(target="MESH")
 
         message = ["Making Blocked Model..."]
-        update_info(message)
+        BDENTAL_GpuDrawText(message)
 
         self.make_blocked(context, self.blocked)
         context.view_layer.objects.active = self.blocked
@@ -6712,9 +6801,9 @@ class BDENTAL_OT_BlockoutNew(bpy.types.Operator):
         guide_components_coll.objects.link(self.blocked)
 
         message = ["Finished."]
-        update_info(message)
+        BDENTAL_GpuDrawText(message)
         sleep(1)
-        update_info()
+        BDENTAL_GpuDrawText()
 
         return {"FINISHED"}
 
@@ -7494,9 +7583,9 @@ class BDENTAL_OT_Parent(bpy.types.Operator):
             message = ["selected object parented to {}".format(
                 context.object.name)]
         if self.display_info :
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             sleep(2)
-            update_info()
+            BDENTAL_GpuDrawText()
             os.system("cls")
         return {"FINISHED"}
 
@@ -7525,9 +7614,9 @@ class BDENTAL_OT_Unparent(bpy.types.Operator):
                         bpy.ops.constraint.apply(constraint=c.name)
 
         message = ["Selected object(s) unparented "]
-        update_info(message)
+        BDENTAL_GpuDrawText(message)
         sleep(2)
-        update_info()
+        BDENTAL_GpuDrawText()
         os.system("cls")
         return {"FINISHED"}
 
@@ -7629,7 +7718,7 @@ class BDENTAL_OT_to_center(bpy.types.Operator):
                     bpy.ops.view3d.snap_cursor_to_center()
                     bpy.ops.view3d.view_all( center=True)
                     bpy.ops.wm.tool_set_by_id( name="builtin.select")
-                update_info()
+                BDENTAL_GpuDrawText()
 
             return {"FINISHED"}
 
@@ -7639,7 +7728,7 @@ class BDENTAL_OT_to_center(bpy.types.Operator):
                 area3D, space3D , region_3d = CtxOverride(context)
                 with bpy.context.temp_override(area= area3D, space_data=space3D, region = region_3d):
                     bpy.ops.wm.tool_set_by_id( name="builtin.select")
-                update_info()
+                BDENTAL_GpuDrawText()
 
                 return {"CANCELLED"}
 
@@ -7658,7 +7747,7 @@ class BDENTAL_OT_to_center(bpy.types.Operator):
                 "Enter : to center model",
             ]
 
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             wm = context.window_manager
             wm.modal_handler_add(self)
             return {"RUNNING_MODAL"}
@@ -8498,9 +8587,9 @@ class BDENTAL_OT_RibbonCutterAdd(bpy.types.Operator):
                 space3D.overlay.show_outline_selected = True
 
                 message = ["CANCELLED"]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 sleep(2)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {"CANCELLED"}
 
         elif event.type == ("LEFTMOUSE") and self.counter == 1:
@@ -8554,7 +8643,7 @@ class BDENTAL_OT_RibbonCutterAdd(bpy.types.Operator):
                     bpy.ops.wm.tool_set_by_id( name="builtin.select")
                     bpy.context.scene.tool_settings.use_snap = False
                     space_data.overlay.show_outline_selected = True
-                    update_info()
+                    BDENTAL_GpuDrawText()
                     return {"FINISHED"}
 
         return {"RUNNING_MODAL"}
@@ -8591,7 +8680,7 @@ class BDENTAL_OT_RibbonCutterAdd(bpy.types.Operator):
             bpy.ops.wm.tool_set_by_id( name="builtin.cursor")
             context.window_manager.modal_handler_add(self)
             txt = ["Left click : draw curve | DEL : roll back | ESC : to cancell operation", "ENTER : to finalise"]
-            update_info(txt)
+            BDENTAL_GpuDrawText(txt)
             return {"RUNNING_MODAL"}
 
 class BDENTAL_OT_RibbonCutter_Perform_Cut(bpy.types.Operator):
@@ -8617,7 +8706,7 @@ class BDENTAL_OT_RibbonCutter_Perform_Cut(bpy.types.Operator):
         start_unvis_objects = [obj for obj in context.scene.objects if not obj in context.visible_objects]
 
         txt = ["Processing ..."]
-        update_info(message=txt)
+        BDENTAL_GpuDrawText(message_list=txt)
         area3D, space3D , region_3d = CtxOverride(context)
         bpy.context.scene.tool_settings.use_snap = False
         with bpy.context.temp_override(area= area3D, space_data=space3D, region = region_3d):
@@ -8763,9 +8852,9 @@ class BDENTAL_OT_RibbonCutter_Perform_Cut(bpy.types.Operator):
                     pass
         
         txt = ["Done."]
-        update_info(message=txt, rect_color=BdentalColors.green)
+        BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.green)
         sleep(1)
-        update_info()
+        BDENTAL_GpuDrawText()
 
         return {"FINISHED"}
 
@@ -9026,9 +9115,9 @@ class BDENTAL_OT_RibbonCutter_Perform_Cut(bpy.types.Operator):
 #         if not self.CurveCuttersList or not self.CuttingTarget:
 
 #             message = [" Please Add Splint Cutters first !"]
-#             update_info(message)
+#             BDENTAL_GpuDrawText(message)
 #             sleep(2)
-#             update_info()
+#             BDENTAL_GpuDrawText()
 #             return {"CANCELLED"}
 
 #         else:
@@ -9137,9 +9226,9 @@ class BDENTAL_OT_CurveCutterAdd(bpy.types.Operator):
         if not context.object or not context.object.type == "MESH":
 
             message = ["Please select the target mesh !"]
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             sleep(2)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {"CANCELLED"}
 
         else:
@@ -9195,9 +9284,9 @@ class BDENTAL_OT_CurveCutterCut(bpy.types.Operator):
         if not CurveCuttersList or not CuttingTarget:
 
             message = [" Please Add Curve Cutters first !"]
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             sleep(2)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {"CANCELLED"}
 
         else:
@@ -9443,9 +9532,9 @@ class BDENTAL_OT_CurveCutter1_New(bpy.types.Operator):
                 space3D.overlay.show_outline_selected = True
 
                 message = ["CANCELLED"]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 sleep(2)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {"CANCELLED"}
 
         elif event.type == ("LEFTMOUSE") and self.counter == 1:
@@ -9505,7 +9594,7 @@ class BDENTAL_OT_CurveCutter1_New(bpy.types.Operator):
                     bpy.ops.wm.tool_set_by_id( name="builtin.select")
                     bpy.context.scene.tool_settings.use_snap = False
                     space3D.overlay.show_outline_selected = True
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {"FINISHED"}
 
         return {"RUNNING_MODAL"}
@@ -9542,7 +9631,7 @@ class BDENTAL_OT_CurveCutter1_New(bpy.types.Operator):
             bpy.ops.wm.tool_set_by_id( name="builtin.cursor")
             context.window_manager.modal_handler_add(self)
         txt = ["Left click : draw curve | DEL : roll back | ESC : to cancell operation", "ENTER : to finalise"]
-        update_info(txt)
+        BDENTAL_GpuDrawText(txt)
         return {"RUNNING_MODAL"}
     
 class BDENTAL_OT_CurveCutter1_New_Perform_Cut(bpy.types.Operator):
@@ -9562,7 +9651,7 @@ class BDENTAL_OT_CurveCutter1_New_Perform_Cut(bpy.types.Operator):
         start_unvis_objects = [obj for obj in context.scene.objects if not obj in context.visible_objects]
 
         txt = ["Processing ..."]
-        update_info(message=txt)
+        BDENTAL_GpuDrawText(message_list=txt)
         area3D, space3D , region_3d = CtxOverride(context)
         bpy.context.scene.tool_settings.use_snap = False
         with bpy.context.temp_override(area= area3D, space_data=space3D, region = region_3d):
@@ -9696,9 +9785,9 @@ class BDENTAL_OT_CurveCutter1_New_Perform_Cut(bpy.types.Operator):
                     pass
         
         txt = ["Done."]
-        update_info(message=txt, rect_color=BdentalColors.green)
+        BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.green)
         sleep(1)
-        update_info()
+        BDENTAL_GpuDrawText()
 
         return {"FINISHED"}
 
@@ -9750,7 +9839,7 @@ class BDENTAL_OT_AddTube(bpy.types.Operator):
             bpy.ops.wm.tool_set_by_id( name="builtin.cursor")
             context.window_manager.modal_handler_add(self)
         message = ["Please draw Tube, and Press <ENTER>"]
-        update_info(message)
+        BDENTAL_GpuDrawText(message)
         return {"RUNNING_MODAL"}
 
     def add_tube(self, context):
@@ -9887,9 +9976,9 @@ class BDENTAL_OT_AddTube(bpy.types.Operator):
                 self.cancell(context)
 
                 message = ["CANCELLED"]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 sleep(2)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {"CANCELLED"}
 
         elif event.type == "RET" and self.counter == 0:
@@ -9897,7 +9986,7 @@ class BDENTAL_OT_AddTube(bpy.types.Operator):
 
                 message = [
                     "Warning : Use left click to draw Tube, and Press <ENTER>"]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
 
                 return {"RUNNING_MODAL"}
 
@@ -9907,7 +9996,7 @@ class BDENTAL_OT_AddTube(bpy.types.Operator):
                 if n <= 1:
                     message = [
                         "Warning : Please draw at least 2 Tube points, and Press <ENTER>"]
-                    update_info(message)
+                    BDENTAL_GpuDrawText(message)
 
                     return {"RUNNING_MODAL"}
 
@@ -9930,9 +10019,9 @@ class BDENTAL_OT_AddTube(bpy.types.Operator):
                     os.system("cls")
 
                     message = ["Tube created"]
-                    update_info(message)
+                    BDENTAL_GpuDrawText(message)
                     sleep(2)
-                    update_info()
+                    BDENTAL_GpuDrawText()
 
                     return {"FINISHED"}
 
@@ -10141,9 +10230,9 @@ class BDENTAL_OT_CurveCutterAdd2(bpy.types.Operator):
                 space3D.overlay.show_outline_selected = True
 
                 message = ["CANCELLED"]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 sleep(2)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {"CANCELLED"}
 
         elif event.type == ("LEFTMOUSE") and self.counter == 1:
@@ -10228,7 +10317,7 @@ class BDENTAL_OT_CurveCutterAdd2(bpy.types.Operator):
                     bpy.ops.object.select_all(action="DESELECT")
 
                     self.cutter.hide_select = True
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {"FINISHED"}
 
         return {"RUNNING_MODAL"}
@@ -10265,7 +10354,7 @@ class BDENTAL_OT_CurveCutterAdd2(bpy.types.Operator):
             bpy.ops.wm.tool_set_by_id( name="builtin.cursor")
             context.window_manager.modal_handler_add(self)
         txt = ["Left click : draw curve | DEL : roll back | ESC : to cancell operation", "ENTER : to finalise"]
-        update_info(txt)
+        BDENTAL_GpuDrawText(txt)
         return {"RUNNING_MODAL"}
 ################################################################################
 
@@ -10319,7 +10408,7 @@ class BDENTAL_OT_CurveCutter2_Cut_New(bpy.types.Operator):
         start_unvis_objects = [obj for obj in context.scene.objects if not obj in context.visible_objects]
 
         txt = ["Processing ..."]
-        update_info(message=txt)
+        BDENTAL_GpuDrawText(message_list=txt)
         area3D, space3D , region_3d = CtxOverride(context)
         
 
@@ -10453,7 +10542,7 @@ class BDENTAL_OT_CurveCutter2_Cut_New(bpy.types.Operator):
             bpy.ops.view3d.snap_cursor_to_center()
 
         print("finished in : ", finish - start, "secondes")
-        update_info()
+        BDENTAL_GpuDrawText()
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -10627,9 +10716,9 @@ class BDENTAL_OT_CurveCutter2_ShortPath(bpy.types.Operator):
         if not self.CurveCuttersList or not self.CuttingTarget:
 
             message = [" Please Add Curve Cutters first !"]
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             sleep(2)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {"CANCELLED"}
         else:
 
@@ -11048,22 +11137,24 @@ class BDENTAL_OT_AddSquareCutter(bpy.types.Operator):
                     self.square_cutter_name)
                 if not self.square_cutter:
                     message = ["Cancelled, No Square Cutter Found ..."]
-                    update_info(message)
+                    BDENTAL_GpuDrawText(message)
                     sleep(2)
-                    update_info()
+                    BDENTAL_GpuDrawText()
                     return {"CANCELLED"}
                 else:
                     txt = ["Processing ..."]
-                    update_info(message=txt)
+                    BDENTAL_GpuDrawText(message_list=txt)
                     self.cut(context)
                     txt = ["Square Cut Done ..."]
-                    update_info(message=txt, rect_color=BdentalColors.green)
+                    BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.green)
                     sleep(2)
                     txt = ["ENTER : to make another cut / ESC : to resume."]
-                    update_info(message=txt)
+                    BDENTAL_GpuDrawText(message_list=txt)
                     return {"RUNNING_MODAL"}
 
         elif event.type == ("ESC"):
+            self.square_cutter = bpy.data.objects.get(
+                    self.square_cutter_name)
             message = ["Finished"]
             try:
                 bpy.data.objects.remove(self.square_cutter)
@@ -11072,9 +11163,9 @@ class BDENTAL_OT_AddSquareCutter(bpy.types.Operator):
 
             for obj in self.start_visible_objects:
                 obj.hide_set(False)
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             sleep(2)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {"CANCELLED"}
 
         return {"RUNNING_MODAL"}
@@ -11095,7 +11186,7 @@ class BDENTAL_OT_AddSquareCutter(bpy.types.Operator):
         message = [
             " Press <ENTER> to Cut, <ESC> to exit",
         ]
-        update_info(message)
+        BDENTAL_GpuDrawText(message)
 
         context.window_manager.modal_handler_add(self)
 
@@ -11124,16 +11215,16 @@ class BDENTAL_OT_square_cut_confirm(bpy.types.Operator):
         if not context.scene["square_cutter_target"]:
 
             message = ["Please add square cutter first !"]
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             sleep(2)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {"CANCELLED"}
 
         elif not context.scene["square_cutter"]:
             message = ["Cancelled, can't find the square cutter !"]
-            update_info(message)
+            BDENTAL_GpuDrawText(message)
             sleep(2)
-            update_info()
+            BDENTAL_GpuDrawText()
 
         else:
 
@@ -11142,16 +11233,16 @@ class BDENTAL_OT_square_cut_confirm(bpy.types.Operator):
                 context.scene["square_cutter_target"])
             if not target:
                 message = ["Cancelled, can't find the target !"]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 sleep(2)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {"CANCELLED"}
             cutter = bpy.data.objects.get(context.scene["square_cutter"])
             if not cutter:
                 message = ["Cancelled, can't find the cutter !"]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 sleep(2)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {"CANCELLED"}
 
             bpy.context.tool_settings.mesh_select_mode = (True, False, False)
@@ -12925,7 +13016,7 @@ class BDENTAL_OT_PathCutter(bpy.types.Operator):
                                 message = [
                                     f"Geodesic path selected {self.counter}", "Cut : Press ENTER | Cancell : Press ESC"]
                                 print(message)
-                                update_info(message)
+                                BDENTAL_GpuDrawText(message)
                                 path = 1
                             except Exception as e:
                                 print(e)
@@ -12938,7 +13029,7 @@ class BDENTAL_OT_PathCutter(bpy.types.Operator):
                                     bpy.ops.mesh.shortest_path_select()
                                     message = ["Shortest path selected", "Cut : Press ENTER | Cancell : Press ESC"]
                                     print(message)
-                                    update_info(message)
+                                    BDENTAL_GpuDrawText(message)
                                     path = 1
                                 except Exception as e:
                                     print(e)
@@ -12952,7 +13043,7 @@ class BDENTAL_OT_PathCutter(bpy.types.Operator):
                                 self.base_mesh.data.vertices[self.previous_vert].select = True
                                 bpy.ops.object.mode_set(mode="EDIT")
                                 message = ["Invalid selection ! Continue...", "Cut : Press ENTER | Cancell : Press ESC"]
-                                update_info(message)
+                                BDENTAL_GpuDrawText(message)
 
                                 return {"RUNNING_MODAL"}
 
@@ -12989,9 +13080,9 @@ class BDENTAL_OT_PathCutter(bpy.types.Operator):
                 bpy.ops.object.mode_set(mode="OBJECT")
 
                 message = ["CANCELLED"]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 sleep(2)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return {"CANCELLED"}
 
         elif event.type == "RET":
@@ -13010,13 +13101,13 @@ class BDENTAL_OT_PathCutter(bpy.types.Operator):
                         bpy.ops.mesh.vert_connect_path()
                         message = [f"Connected path selected {self.counter}"]
                         print(message)
-                        update_info(message)
+                        BDENTAL_GpuDrawText(message)
                         path = 1
                     except Exception as e:
                         message = ["Error from Connect Path"]
                         print(message)
                         print(e)
-                        update_info(message)
+                        BDENTAL_GpuDrawText(message)
                         pass
                     if path == 0:
                         try:
@@ -13026,7 +13117,7 @@ class BDENTAL_OT_PathCutter(bpy.types.Operator):
                             bpy.ops.mesh.shortest_path_select()
                             message = ["Shortest path selected"]
                             print(message)
-                            update_info(message)
+                            BDENTAL_GpuDrawText(message)
                             path = 1
                         except Exception as e:
                             message = ["Error from Shortest Path"]
@@ -13039,7 +13130,7 @@ class BDENTAL_OT_PathCutter(bpy.types.Operator):
                         bpy.ops.object.vertex_group_select()
                         self.bm.verts[self.previous_vert].select = True
                         message = ["Can't connect the path"]
-                        update_info(message)
+                        BDENTAL_GpuDrawText(message)
 
                         return {"RUNNING_MODAL"}
 
@@ -13057,13 +13148,13 @@ class BDENTAL_OT_PathCutter(bpy.types.Operator):
                         bpy.ops.object.mode_set(mode="OBJECT")
 
                         message = ["FINISHED ./"]
-                        update_info(message)
+                        BDENTAL_GpuDrawText(message)
                         sleep(1)
-                        update_info()
+                        BDENTAL_GpuDrawText()
                         return {"FINISHED"}
             else:
                 message = ["Please select at least 2 vertices"]
-                update_info(message)
+                BDENTAL_GpuDrawText(message)
                 return {"RUNNING_MODAL"}
 
         return {"RUNNING_MODAL"}
@@ -13108,8 +13199,9 @@ class BDENTAL_OT_PathCutter(bpy.types.Operator):
             context.window_manager.modal_handler_add(self)
         message = ["################## Draw path, #################",
                    "################## When done press ENTER. #################"]
-        update_info(message)
+        BDENTAL_GpuDrawText(message)
         return {"RUNNING_MODAL"}
+
 
 
 #################################################################################################

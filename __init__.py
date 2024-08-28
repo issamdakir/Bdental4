@@ -263,7 +263,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 bl_info = {
-    "name": "Bdental-3",  
+    "name": "Bdental4",  
     "author": "Dr. Essaid Issam Dakir DMD\n,Dr. Ilya Fomenco DMD\n, Dr. Krasouski Dmitry DMD",
     "version": (4, 2, 0),
     "blender": (4, 2, 0),  
@@ -271,7 +271,7 @@ bl_info = {
     "description": "3D Digital Dentistry",  
     "warning": "",
     "doc_url": "",
-    "tracker_url": "https://t.me/bdental3",
+    # "tracker_url": "https://t.me/bdental3",
     "category": "Dental",  
 }
 #############################################################################################
@@ -282,316 +282,244 @@ bl_info = {
 import sys
 import shutil
 import os
-import bpy
+import bpy # type: ignore
 import zipfile
-import socket
-import webbrowser
+
 from importlib import import_module
 from os.path import dirname,basename, join, abspath, expanduser,exists, isfile, isdir
 from time import sleep
 import threading
-import gpu
-from gpu_extras.batch import batch_for_shader
-import blf
+
 import tempfile
 from glob import glob
 import requests
 from requests.exceptions import HTTPError, Timeout, RequestException
-import json
+import gpu # type: ignore
+from gpu_extras.batch import batch_for_shader # type: ignore
+import blf # type: ignore
 
-if sys.platform == "win32":
-    sys.stdout.reconfigure(
-        encoding="cp65001"
-    )  # activate unicode characters in windows CLI
+from .utils import (
+    bdental_log,
+    BDENTAL_MODULES,
+    add_bdental_libray,
+    set_modules_path,
+    isConnected,
+    BdentalColors,
+    BDENTAL_GpuDrawText,
+    browse,
+    get_bdental_version,
+    ERROR_MESSAGE,
+    ERROR_PANEL,
+    ImportReq,
+    addon_update_preinstall,
+    get_update_version,
+    BLF_INFO,
+    ADDON_DIR,
+    RESOURCES,
+    REQ_DICT,
+    TELEGRAM_LINK,
+    ADDON_VER_PATH,
+    UPDATE_VERSION_URL,
+    REPO_URL,
+    addon_update_download,
+    write_json,
+    open_json,
+)
 
+# DRAW_HANDLERS=[]
+addon_version = get_bdental_version(filepath=ADDON_VER_PATH)
+set_modules_path()
 
-BLF_INFO = {
-    "fontid" : 0,
-    "size" : 18
-}
-class BdentalColors():
-    white = [0.8,0.8,0.8,1.0]
-    black = [0.0,0.0,0.0,1.0]
-    trans = [0.8,0.8,0.8,0.0]
-    red = [1.0,0.0,0.0,1.0]
-    orange = [0.8, 0.258385, 0.041926, 1.0]
-    yellow = [0.4,0.4,0.1,1]
-    green = [0,1,0.2,0.7]
-    blue = [0.2,0.1,1,0.2]
-    default = orange
+# def gpu_info_footer(rect_color, text_list, button=False, btn_txt="", pourcentage=100):
+#     global BLF_INFO
+#     if pourcentage <= 0:
+#         pourcentage = 1
+#     if pourcentage > 100:
+#         pourcentage = 100
 
+#     def draw_callback_function():
 
+#         w = int(bpy.context.area.width * (pourcentage/100))
+#         for i, txt in enumerate((reversed(text_list))):
 
+#             h = 30
+#             # color = [0.4, 0.4, 0.8, 1.000000]
+#             # color =[0.9, 0.5, 0.000000, 1.000000]
+#             draw_gpu_rect(0, h*i, w, h, rect_color)
+#             blf.position(0, 10, 10 + (h*i), 0)
+#             blf.size(BLF_INFO.get("fontid"), BLF_INFO.get("size")) # 3.6 api blf.size(0, 40, 30) -> blf.size(fontid, size)
+#             r, g, b, a = (0.0, 0.0, 0.0, 1.0)
+#             blf.color(0, r, g, b, a)
+#             blf.draw(0, txt)
 
+#         if button:
 
-DRAW_HANDLERS = []
-REPO_URL = "https://github.com/issamdakir/Bdental-3-win/zipball/main"
-VERSION_URL = "https://raw.githubusercontent.com/issamdakir/Bdental-3-win/main/Resources/BDENTAL_Version.txt"
-ADDON_UPDATE_URL = "https://github.com/issamdakir/Bdental-3-update/zipball/main"
-UPDATE_VERSION_URL = "https://raw.githubusercontent.com/issamdakir/Bdental-3-update/main/data/BDENTAL_Version.txt"
-GITHUB_CMD = "curl -L https://github.com/issamdakir/Bdental-3-win/zipball/main"
-TELEGRAM_LINK = "https://t.me/bdental3"
-REQ_DICT = {
-    "SimpleITK": "SimpleITK",
-    "vtk": "vtk",
-    "cv2.aruco": "opencv-contrib-python",
-}
-ERROR_PANEL = False
-ERROR_MESSAGE = []
-ADDON_DIR = dirname(abspath(__file__))
-RESOURCES = join(ADDON_DIR, "Resources")
-BDENTAL_LIBRARY_PATH = join(RESOURCES, "Bdental_Library")
-# user_lib = bpy.context.preferences.filepaths.asset_libraries.get('Bdental Library')
-# if user_lib :
-#     user_lib.path = BDENTAL_LIBRARY_PATH
-ADDON_VER_PATH = join(RESOURCES, "BDENTAL_Version.txt")
-ADDON_VER_DATE = "  "
+#             h = 30
+#             color = [0.8, 0.258385, 0.041926, 1.0]
+#             draw_gpu_rect(w-110, 2, 100, h-4, color)
+#             blf.position(0, w-85, 10, 0)
+#             blf.size(BLF_INFO.get("fontid"), BLF_INFO.get("size")) # 3.6 api blf.size(0, 40, 30) -> blf.size(fontid, size)
+#             r, g, b, a = (0.0, 0.0, 0.0, 1.0)
+#             blf.color(0, r, g, b, a)
+#             blf.draw(0, btn_txt)
 
-if exists(ADDON_VER_PATH):
-    with open(ADDON_VER_PATH, "r") as rf:
-        lines = rf.readlines()
-        ADDON_VER_DATE = lines[0].split(";")[0]
+#     info_handler = bpy.types.SpaceView3D.draw_handler_add(
+#         draw_callback_function, (), "WINDOW", "POST_PIXEL"
+#     )
+#     # redraw scene
+#     # bpy.ops.wm.redraw_timer(type = 'DRAW_WIN_SWAP', iterations = 1)
+#     # for area in bpy.context.window.screen.areas:
+#     #     if area.type == "VIEW_3D":
+#     #         area.tag_redraw()
 
-BDENTAL_MODULES = join(ADDON_DIR, "bdental_modules")
-sys.path.insert(0,BDENTAL_MODULES)
-# BDENTAL_MODULES_ZIP = join(RESOURCES, "bdental_modules.zip")
-#############################################################
-def bdental_log(txt_list,header=None,footer=None):
-    _header, _footer = header, footer
-    if _header is None :
-        _header=f"\n{'#'*20} Bdental log :  {'#'*20}\n"
-    if _footer is None:
-        _footer=f"\n{'#'*20} End log.\  {'#'*20}\n"
+#     return info_handler
+
+# def get_btn_bb(btn_index=0, btn_width=100, btn_height=26, padding_x=10, padding_y=2, safe_area=5):
+#     area3d = None
+#     area3d_check = [
+#         area for area in bpy.context.screen.areas if area.type == "VIEW_3D"]
+#     if area3d_check:
+#         area3d = area3d_check[0]
+#     if area3d:
+#         w = area3d.width
+#         x_min = w - padding_x - (btn_width*(btn_index+1)) - \
+#             (padding_x*btn_index) - safe_area
+#         x_max = w - padding_x - (btn_width*(btn_index)) - \
+#             (padding_x*btn_index) + safe_area
+#         y_min = 0
+#         y_max = btn_height+safe_area
+#         btn_bb = {
+#             "x_min": x_min,
+#             "x_max": x_max,
+#             "y_min": y_min,
+#             "y_max": y_max
+#         }
+#         return btn_bb
+#     else:
+#         return None
+
+# def draw_gpu_rect(x, y, w, h, rect_color):
+
+#     vertices = (
+#         (x, y), (x, y + h),
+#         (x + w, y + h), (x + w, y))
+
+#     indices = (
+#         (0, 1, 2), (0, 2, 3)
+#     )
+
+#     gpu.state.blend_set('ALPHA')
+#     shader = gpu.shader.from_builtin('UNIFORM_COLOR') # 3.6 api '2D_UNIFORM_COLOR'
+#     batch = batch_for_shader(
+#         shader, 'TRIS', {"pos": vertices}, indices=indices)
+#     shader.bind()
+#     shader.uniform_float("color", rect_color)
+#     batch.draw(shader)
+
+# def update_info(message=[], remove_handlers=True, button=False, btn_txt="", pourcentage=100, redraw_timer=True, rect_color=BdentalColors.default):
+#     global DRAW_HANDLERS
+
+#     if remove_handlers:
+#         for _h in DRAW_HANDLERS:
+#             bpy.types.SpaceView3D.draw_handler_remove(_h, "WINDOW")
+#         DRAW_HANDLERS = []
+#     if message:
+#         info_handler = gpu_info_footer(
+#             text_list=message, button=False, btn_txt="", pourcentage=100, rect_color=rect_color)
+#         DRAW_HANDLERS.append(info_handler)
+#     if redraw_timer:
+#         bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+# class BDENTAL_GpuDrawText() :
+#     """gpu draw text in active area 3d"""
     
-    print(_header)
-    for line in txt_list :
-        print(line)
-    print(_footer)
-def add_bdental_libray():
-    if not exists(BDENTAL_LIBRARY_PATH) :
-        os.mkdir(BDENTAL_LIBRARY_PATH)
-    lib_archive_dir_path = join(BDENTAL_LIBRARY_PATH, "lib_archive")
-    if exists(lib_archive_dir_path) :
-        files = glob(join(lib_archive_dir_path, "*"))
+    
+
+#     def __init__(self,
+#                 message_list = [],
+#                 remove_handlers=True,
+#                 button=False,
+#                 pourcentage=100,
+#                 redraw_timer=True,
+#                 rect_color=BdentalColors.default,
+#                 rect_height = 30,
+#                 txt_color = BdentalColors.black,
+#                 btn_txt = "OK",
+#                 info_handler = None
+#                 ):
         
-        for f in files :
-            if f.endswith(".zip"):
-                with zipfile.ZipFile(f, 'r') as zip_ref:
-                    zip_ref.extractall(BDENTAL_LIBRARY_PATH)
-            else:
-                dst = join(BDENTAL_LIBRARY_PATH, basename(f))
-                if exists(dst):
-                    os.remove(dst)
+#         global DRAW_HANDLERS
+#         self.message_list=message_list
+#         self.remove_handlers=remove_handlers
+#         self.button=button
+#         self.pourcentage=pourcentage
+#         self.redraw_timer=redraw_timer
+#         self.rect_color=rect_color
+#         self.rect_height=rect_height
+#         self.txt_color=txt_color
+#         self.btn_txt=btn_txt
+#         self.info_handler=info_handler
 
-                shutil.move(f, BDENTAL_LIBRARY_PATH)
-        shutil.rmtree(lib_archive_dir_path)
+#         if self.remove_handlers:
+#             for _h in DRAW_HANDLERS:
+#                 bpy.types.SpaceView3D.draw_handler_remove(_h, "WINDOW")
+#             DRAW_HANDLERS = []
+#         if self.message_list:
+#             self.gpu_info_footer()
+#             DRAW_HANDLERS.append(self.info_handler)
+#         bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)   
+        
 
-    user_lib = bpy.context.preferences.filepaths.asset_libraries.get('Bdental Library') 
-    
-    if user_lib :
-        user_lib.path = BDENTAL_LIBRARY_PATH
-    else :
-        bpy.ops.preferences.asset_library_add(directory=BDENTAL_LIBRARY_PATH)
+#     def gpu_info_footer(self):
+        
+#         if self.pourcentage <= 0:
+#             self.pourcentage = 1
+#         if self.pourcentage > 100:
+#             self.pourcentage = 100
 
-    return
-def ImportReq(REQ_DICT):
-    Pkgs = []
-    for mod, pkg in REQ_DICT.items():
-        try:
-            import_module(mod)
-        except ImportError:
-            Pkgs.append(pkg)
+#         def draw_callback_function():
 
-    return Pkgs
+#             w = int(bpy.context.area.width * (self.pourcentage/100))
+#             for i, txt in enumerate((reversed(self.message_list))):
 
-def isConnected():
-    try:
-        sock = socket.create_connection(("www.google.com", 80))
-        if sock is not None:
-            sock.close
-        return True
-    except OSError:
-        return False
+#                 self.draw_gpu_rect(0, self.rect_height*i, w, self.rect_height, self.rect_color)
+#                 blf.position(0, 10, 10 + (self.rect_height*i), 0)
+#                 blf.size(BLF_INFO.get("fontid"), BLF_INFO.get("size")) # 3.6 api blf.size(0, 40, 30) -> blf.size(fontid, size)
+#                 r, g, b, a = self.txt_color
+#                 blf.color(0, r, g, b, a)
+#                 blf.draw(0, txt)
 
-def browse(url) :
-    success = 0
-    try :
-        webbrowser.open(url)
-        success = 1
-        return success
-    except Exception as er :
-        print(f"open telegram link error :\n{er}")
-        return success
+#             if self.button:
+#                 self.draw_gpu_rect(w-110, 2, 100, self.rect_height-4, BdentalColors.yellow)
+#                 blf.position(0, w-85, 10, 0)
+#                 blf.size(BLF_INFO.get("fontid"), BLF_INFO.get("size")) # 3.6 api blf.size(0, 40, 30) -> blf.size(fontid, size)
+#                 r, g, b, a = self.txt_color
+#                 blf.color(0, r, g, b, a)
+#                 blf.draw(0, self.btn_txt)
 
-def start_blender_session():
-    # print(f"binary path : {bpy.app.binary_path}")
-    os.system(f'"{bpy.app.binary_path}"')
+#         self.info_handler = bpy.types.SpaceView3D.draw_handler_add(
+#             draw_callback_function, (), "WINDOW", "POST_PIXEL"
+#         )
+#         bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
 
-# def addon_update(_dir, addon_dir):
-     
-#     for elmt in os.listdir(_dir):
-#         fullpath = join(addon_dir,elmt)
-#         new_elmt = join(_dir,elmt)
-#         if exists(fullpath) :
-#             if isfile(fullpath) :
-#                 os.remove(fullpath)
-#                 shutil.move(new_elmt, addon_dir)
-#             else :
-#                 if not "bdental_modules" in elmt.lower() :
-#                     shutil.rmtree(fullpath)
-#                     shutil.move(new_elmt, addon_dir)
-#                 else :
-#                     resources = join(addon_dir, "Resources")
-#                     shutil.move(new_elmt, resources)
+#     def draw_gpu_rect(self,x, y, w, h, rect_color):
 
-def exit_blender():
-    sys.exit(0)
+#         vertices = (
+#             (x, y), (x, y + h),
+#             (x + w, y + h), (x + w, y))
 
-def gpu_info_footer(rect_color, text_list, button=False, btn_txt="", pourcentage=100):
-    global BLF_INFO
-    if pourcentage <= 0:
-        pourcentage = 1
-    if pourcentage > 100:
-        pourcentage = 100
+#         indices = (
+#             (0, 1, 2), (0, 2, 3)
+#         )
 
-    def draw_callback_function():
+#         gpu.state.blend_set('ALPHA')
+#         shader = gpu.shader.from_builtin('UNIFORM_COLOR') # 3.6 api '2D_UNIFORM_COLOR'
+#         batch = batch_for_shader(
+#             shader, 'TRIS', {"pos": vertices}, indices=indices)
+#         shader.bind()
+#         shader.uniform_float("color", rect_color)
+#         batch.draw(shader)
 
-        w = int(bpy.context.area.width * (pourcentage/100))
-        for i, txt in enumerate((reversed(text_list))):
 
-            h = 30
-            # color = [0.4, 0.4, 0.8, 1.000000]
-            # color =[0.9, 0.5, 0.000000, 1.000000]
-            draw_gpu_rect(0, h*i, w, h, rect_color)
-            blf.position(0, 10, 10 + (h*i), 0)
-            blf.size(BLF_INFO.get("fontid"), BLF_INFO.get("size")) # 3.6 api blf.size(0, 40, 30) -> blf.size(fontid, size)
-            r, g, b, a = (0.0, 0.0, 0.0, 1.0)
-            blf.color(0, r, g, b, a)
-            blf.draw(0, txt)
-
-        if button:
-
-            h = 30
-            color = [0.8, 0.258385, 0.041926, 1.0]
-            draw_gpu_rect(w-110, 2, 100, h-4, color)
-            blf.position(0, w-85, 10, 0)
-            blf.size(BLF_INFO.get("fontid"), BLF_INFO.get("size")) # 3.6 api blf.size(0, 40, 30) -> blf.size(fontid, size)
-            r, g, b, a = (0.0, 0.0, 0.0, 1.0)
-            blf.color(0, r, g, b, a)
-            blf.draw(0, btn_txt)
-
-    info_handler = bpy.types.SpaceView3D.draw_handler_add(
-        draw_callback_function, (), "WINDOW", "POST_PIXEL"
-    )
-    # redraw scene
-    # bpy.ops.wm.redraw_timer(type = 'DRAW_WIN_SWAP', iterations = 1)
-    # for area in bpy.context.window.screen.areas:
-    #     if area.type == "VIEW_3D":
-    #         area.tag_redraw()
-
-    return info_handler
-
-def get_btn_bb(btn_index=0, btn_width=100, btn_height=26, padding_x=10, padding_y=2, safe_area=5):
-    area3d = None
-    area3d_check = [
-        area for area in bpy.context.screen.areas if area.type == "VIEW_3D"]
-    if area3d_check:
-        area3d = area3d_check[0]
-    if area3d:
-        w = area3d.width
-        x_min = w - padding_x - (btn_width*(btn_index+1)) - \
-            (padding_x*btn_index) - safe_area
-        x_max = w - padding_x - (btn_width*(btn_index)) - \
-            (padding_x*btn_index) + safe_area
-        y_min = 0
-        y_max = btn_height+safe_area
-        btn_bb = {
-            "x_min": x_min,
-            "x_max": x_max,
-            "y_min": y_min,
-            "y_max": y_max
-        }
-        return btn_bb
-    else:
-        return None
-
-def draw_gpu_rect(x, y, w, h, rect_color):
-
-    vertices = (
-        (x, y), (x, y + h),
-        (x + w, y + h), (x + w, y))
-
-    indices = (
-        (0, 1, 2), (0, 2, 3)
-    )
-
-    gpu.state.blend_set('ALPHA')
-    shader = gpu.shader.from_builtin('UNIFORM_COLOR') # 3.6 api '2D_UNIFORM_COLOR'
-    batch = batch_for_shader(
-        shader, 'TRIS', {"pos": vertices}, indices=indices)
-    shader.bind()
-    shader.uniform_float("color", rect_color)
-    batch.draw(shader)
-
-def update_info(message=[], remove_handlers=True, button=False, btn_txt="", pourcentage=100, redraw_timer=True, rect_color=BdentalColors.default):
-    global DRAW_HANDLERS
-
-    if remove_handlers:
-        for _h in DRAW_HANDLERS:
-            bpy.types.SpaceView3D.draw_handler_remove(_h, "WINDOW")
-        DRAW_HANDLERS = []
-    if message:
-        info_handler = gpu_info_footer(
-            text_list=message, button=False, btn_txt="", pourcentage=100, rect_color=rect_color)
-        DRAW_HANDLERS.append(info_handler)
-    if redraw_timer:
-        bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
-
-def write_json(Dict,outPath) :
-    jsonString = json.dumps(Dict,indent=4)
-    with open(outPath, 'w') as wf :
-        wf.write(jsonString)
-
-def open_json(jsonPath) :
-    with open(jsonPath, "r") as f:
-        dataDict = json.load(f)
-    return dataDict
-# def addon_download():
-#     global GITHUB_CMD
-
-#     message = []
-#     download_is_ok = False
-#     _dir = None 
-
-#     temp_dir = tempfile.mkdtemp()
-#     os.chdir(temp_dir)
-#     bdental_zip = join(temp_dir,'Bdental-3.zip')
-#     _counter = 0
-#     while _counter <= 3 :
-#         _counter += 1
-#         print(_counter)
-#         os.system(f"{GITHUB_CMD} > {bdental_zip}")
-#         if exists(bdental_zip) :
-#             download_is_ok = True
-#             print(f"number of url curls : {_counter} -> zip file downloaded : ", bdental_zip)
-#             break
-    
-#     if not download_is_ok :
-#         message.extend(["Error : curl bdental.zip download"])
-#         return message,_dir
-
-    
-    
-#     try :
-#         with zipfile.ZipFile(bdental_zip, 'r') as zip_ref:
-#             zip_ref.extractall(temp_dir)
-#     except :
-#         message.extend([f"Error : extract downloaded zip file {bdental_zip}"])
-#         return message,_dir
-#     src = [abspath(e) for e in os.listdir(temp_dir) if isdir(abspath(e))][0]
-#     _dir = join(temp_dir,"Bdental-3")
-#     os.rename(src,_dir)
-#     return message,_dir
 
 def addon_download():
     global REPO_URL
@@ -652,98 +580,7 @@ def addon_download():
         print(f"An unexpected error occurred: {err}") 
     return message,_dir
 
-def addon_update_download():
-    global ADDON_UPDATE_URL
-    message = []
-    update_root = None 
-    try :
-        temp_dir = tempfile.mkdtemp()
-        os.chdir(temp_dir)
-        Bdental_3_update_zip_local = join(temp_dir,'Bdental_3_update.zip')
 
-        # Download the file
-        with requests.get(ADDON_UPDATE_URL, stream=True, timeout=10) as r:
-            try:
-                r.raise_for_status()
-            except HTTPError as http_err:
-                txt = "HTTP error occurred"
-                bdental_log([f"{txt} : {http_err}"])
-                message.extend([txt])
-                return message,update_root
-            except ConnectionError as conn_err:
-                txt = "Connection error occurred"
-                bdental_log([f"{txt} : {conn_err}"])
-                message.extend([txt])
-                return message,update_root
-            except Timeout as timeout_err:
-                txt = "Timeout error occurred"
-                bdental_log([f"{txt} : {timeout_err}"])
-                message.extend([txt])
-                return message,update_root
-            except RequestException as req_err:
-                txt = f"Error during requests to {REPO_URL}"
-                bdental_log([f"{txt} : {req_err}"])
-                message.extend([txt])
-                return message,update_root
-            
-            with open(Bdental_3_update_zip_local, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
-
-        
-        
-        try :
-            with zipfile.ZipFile(Bdental_3_update_zip_local, 'r') as zip_ref:
-                zip_ref.extractall(temp_dir)
-        except zipfile.BadZipFile as zip_err:
-            txt = "Error occurred while extracting the downloaded addon ZIP file"
-            bdental_log([f"{txt} : {zip_err}"])
-            message.extend([txt])
-            return message,update_root
-        
-        src = [abspath(e) for e in os.listdir(temp_dir) if isdir(abspath(e))][0]
-        update_root = join(temp_dir,"Bdental-3-update")
-        os.rename(src,update_root)
-        return message,update_root
-
-    except OSError as os_err:
-        bdental_log([f"OS error occurred: {os_err}"])
-        message.extend([txt])
-        return message,update_root
-    except Exception as err:
-        bdental_log([f"An unexpected error occurred: {err}"]) 
-        message.extend([txt])
-        return message,update_root
-
-def addon_update_preinstall(update_root):
-    global ADDON_DIR
-    update_data_map_json = join(update_root, "update_data_map.json")
-    update_data_map_dict = open_json(update_data_map_json)
-    update_data_dir = join(update_root, "data")
-    items = os.listdir(update_data_dir)
-    # update_data_dict = {}
-    # for i in items :
-    #     k = join(update_data_dir,i)
-    #     v = join(ADDON_DIR,*update_data_map_dict.get(i))
-    update_data_dict = {join(update_data_dir,i) : join(ADDON_DIR,*update_data_map_dict.get(i)) for i in items}
-    for src,dst in update_data_dict.items():
-        if not "bdental_modules" in src.lower() :
-            if exists(dst) :
-                if isfile(dst) :
-                    os.remove(dst)
-                else :
-                    shutil.rmtree(dst)
-            else :
-                if not exists(dirname(dst)) :
-                    os.makedirs(dirname(dst))
-
-            shutil.move(src, dirname(dst))
-        else :
-            resources = join(ADDON_DIR, "Resources")
-            shutil.move(src, resources)
-
-     
-    
 
 class BDENTAL_OT_SupportTelegram(bpy.types.Operator):
         """ open telegram bdental support link"""
@@ -759,11 +596,33 @@ class BDENTAL_OT_SupportTelegram(bpy.types.Operator):
 
 
         def execute(self, context):
-            global TELEGRAM_LINK
             browse(TELEGRAM_LINK)
             
             return{"FINISHED"}
+class BDENTAL_OT_AddBdentalLibrary(bpy.types.Operator):
+    """ add bdental library """
 
+    bl_idname = "wm.bdental_add_bdental_library"
+    bl_label = "Add Bdental Library"
+    def execute(self, context):
+        with context.temp_override(window=context.window_manager.windows[0]):
+            message = ["Adding Bdental library..."]
+            BDENTAL_GpuDrawText(message)
+            sleep(1)
+            message, success = add_bdental_libray()
+            if not success and message :
+                BDENTAL_GpuDrawText(message_list=message,rect_color=BdentalColors.red)
+                sleep(3)
+                BDENTAL_GpuDrawText()
+                return {"CANCELLED"}
+
+
+            message = ["FINISHED"]
+            BDENTAL_GpuDrawText(message_list=message,rect_color=BdentalColors.green)
+            sleep(2)
+            BDENTAL_GpuDrawText()
+            return {"FINISHED"}
+    
 class BdentalAddonPreferences(bpy.types.AddonPreferences):
         bl_idname = __name__
 
@@ -774,6 +633,8 @@ class BdentalAddonPreferences(bpy.types.AddonPreferences):
             row.operator("wm.bdental_add_app_template", text="Bdental as template",icon="SETTINGS")
             row = box.row()
             row.operator("wm.bdental_set_config", text="Bdental as default", icon="TOOL_SETTINGS")
+            row = box.row()
+            row.operator("wm.bdental_add_bdental_library", text="Add Bdental Library", icon="TOOL_SETTINGS")
 
 class BDENTAL_OT_checkUpdate(bpy.types.Operator):
     """ check addon update """
@@ -790,26 +651,26 @@ class BDENTAL_OT_checkUpdate(bpy.types.Operator):
             return {'PASS_THROUGH'}
 
         elif event.type in {'ESC'}:
-            update_info(["Bdental update Cancelled./"], rect_color=BdentalColors.red)
+            BDENTAL_GpuDrawText(message_list=["Bdental update Cancelled./"], rect_color=BdentalColors.red)
+            # update_info(["Bdental update Cancelled./"], rect_color=BdentalColors.red)
             sleep(1)
-            update_info()
+            BDENTAL_GpuDrawText()
             return {'CANCELLED'}
         
         elif event.type in {'RET'} and event.value == "PRESS":
-            global ADDON_DIR
-            update_info(["Downloading..."])
+            BDENTAL_GpuDrawText(message_list=["Downloading..."])
             _message, update_root = addon_update_download()
             if _message :
                 bdental_log(_message)
-                update_info(message=_message, rect_color=BdentalColors.red)
+                BDENTAL_GpuDrawText(message=_message, rect_color=BdentalColors.red)
                 sleep(3)
-                update_info()
+                BDENTAL_GpuDrawText()
                 return{"CANCELLED"}
             
-            update_info(message=["Preparing update..."])
+            BDENTAL_GpuDrawText(message_list=["Preparing update..."])
             addon_update_preinstall(update_root)
             add_bdental_libray()
-            update_info(["Please restart blender to finalize Bdental update."], rect_color=BdentalColors.green)
+            BDENTAL_GpuDrawText(message_list=["Please restart blender to finalize Bdental update."], rect_color=BdentalColors.green)
             # sleep(5)
             # update_info()
             
@@ -819,53 +680,35 @@ class BDENTAL_OT_checkUpdate(bpy.types.Operator):
 
     def invoke(self, context, event):
         if not isConnected() :
-            update_info(message=["Bdental update : Please check internet connexion !"], rect_color=BdentalColors.red)
+            BDENTAL_GpuDrawText(message_list=["Bdental update : Please check internet connexion !"], rect_color=BdentalColors.red)
             sleep(3)
-            update_info()
+            BDENTAL_GpuDrawText()
             return{"CANCELLED"}
-
-        global ADDON_VER_PATH
-        global UPDATE_VERSION_URL
         
-        success = 0
-        update_info(message=["Server connect..."])
-        try :
-            r = requests.get(UPDATE_VERSION_URL)
-            success = r.ok
-        except Exception as er :
-            txt_list = [f"request github bdental version error : {er}"]
-            bdental_log(txt_list)
+        addon_version = get_bdental_version(filepath=ADDON_VER_PATH)
+        update_version,success,txt_list = get_update_version()
+        if not addon_version :
+            addon_version = "unknown"
             
         if not success :
-            bdental_log([f"request response = {r.text}"])
-            update_info(message=["Bdental update : server conexion error !"], rect_color=BdentalColors.red)
+            BDENTAL_GpuDrawText(message_list=txt_list, rect_color=BdentalColors.red)
             sleep(3)
-            update_info()
+            BDENTAL_GpuDrawText()
+            return{"CANCELLED"}
+        
+        
+        txt_list = [f"Bdental addon update check : Current version = {addon_version} / update version = {update_version}"]
+        
+        
+        if update_version <= addon_version :
+            txt_list = ["Bdental is up to date."]
+            bdental_log(txt_list)
+            BDENTAL_GpuDrawText(message_list=txt_list, rect_color=BdentalColors.green)
+            sleep(3)
+            BDENTAL_GpuDrawText()
             return{"CANCELLED"}
 
-        last_txt, last_num_txt = r.text.split(";")
-        last_num = int(last_num_txt)
-        current_txt = "unknown"
-        txt_list = [f"Bdental addon update check : Current = {current_txt} Last release = {last_txt}"]
-        
-        if exists(ADDON_VER_PATH):
-            with open(ADDON_VER_PATH, "r") as rf:
-                lines = rf.readlines()
-                current_txt, current_num = lines[0].split(";")
-                current_num = int(current_num)
-                
-            txt_list = [f"Bdental addon update check : Current version = {current_txt} / Last version = {last_txt}"]
-            
-            
-            if last_num <= current_num :
-                txt_list = ["Bdental is up to date."]
-                bdental_log(txt_list)
-                update_info(message=txt_list, rect_color=BdentalColors.green)
-                sleep(3)
-                update_info()
-                return{"CANCELLED"}
-
-        update_info(message=txt_list+["<ENTER> : to install last update / <ESC> : to cancel"], rect_color=BdentalColors.yellow)
+        BDENTAL_GpuDrawText(message_list=txt_list+["<ENTER> : to install last update / <ESC> : to cancel"], rect_color=BdentalColors.yellow)
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
@@ -877,7 +720,7 @@ class BDENTAL_PT_ModulesErrorPanel(bpy.types.Panel):
         bl_space_type = "VIEW_3D"
         bl_region_type = "UI" 
         bl_category = "BDENTAL"
-        bl_label = f"BDENTAL (ver. {ADDON_VER_DATE})"
+        bl_label = f"BDENTAL (ver. {addon_version})"
 
         def draw(self, context):
 
@@ -894,10 +737,8 @@ class BDENTAL_PT_ModulesErrorPanel(bpy.types.Panel):
 
 
 ###################################################
-txt_list = [f"bdental version : {bl_info.get('version')}", f"bdental version date: {ADDON_VER_DATE}"]
+txt_list = [f"{bl_info.get('name')} started version : {addon_version if addon_version else 'unknown!'}"]
 bdental_log(txt_list)
-# print(f"bdental version : {bl_info.get('version')}")
-# print(f"bdental version date: {ADDON_VER_DATE}")
 
 new_modules = join(RESOURCES, "bdental_modules")
 if exists(new_modules) :
@@ -934,6 +775,7 @@ if ERROR_PANEL :
             BDENTAL_OT_SupportTelegram,
             BDENTAL_OT_checkUpdate,
             BDENTAL_PT_ModulesErrorPanel,
+            
         ]
     def register():
         
@@ -963,8 +805,10 @@ else:
     ]
     init_classes = [
         BDENTAL_OT_SupportTelegram,
-        BdentalAddonPreferences,
+        BDENTAL_OT_AddBdentalLibrary,
         BDENTAL_OT_checkUpdate,
+        BdentalAddonPreferences,
+        
         ]
 
     def register():
