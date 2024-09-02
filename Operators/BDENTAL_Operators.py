@@ -45,7 +45,9 @@ from ..utils import (
     VERSION_URL,
     BLF_INFO,
     BdentalColors,
-    BDENTAL_LIB_NAME
+    BDENTAL_LIB_NAME,
+    BOOL_NODE,
+    GUIDE_NAME,
 )
 
 
@@ -1018,6 +1020,8 @@ class BDENTAL_OT_MPR2(bpy.types.Operator):
 
         #####################################################
         # axial camera
+        space_data_slicer_axial = [s for s in area_slicer_axial.spaces if s.type=="VIEW_3D"][0]
+
         space_data_slicer_axial = area_slicer_axial.spaces.active
         region_slicer_axial = [r for r in area_slicer_axial.regions if r.type == 'WINDOW'][0]
 
@@ -1038,6 +1042,8 @@ class BDENTAL_OT_MPR2(bpy.types.Operator):
         context.view_layer.objects.active = slices_pointer
         ################################################
         # coronal camera
+        space_data_slicer_coronal = [s for s in area_slicer_coronal.spaces if s.type=="VIEW_3D"][0]
+
         space_data_slicer_coronal = area_slicer_coronal.spaces.active
         region_slicer_coronal = [
             r for r in area_slicer_coronal.regions if r.type == 'WINDOW'][0]
@@ -1056,7 +1062,7 @@ class BDENTAL_OT_MPR2(bpy.types.Operator):
         }
         ################################################
         # sagittal camera
-        space_data_slicer_sagittal = area_slicer_sagittal.spaces.active
+        space_data_slicer_sagittal = [s for s in area_slicer_sagittal.spaces if s.type=="VIEW_3D"][0]
         region_slicer_sagittal = [
             r for r in area_slicer_sagittal.regions if r.type == 'WINDOW'][0]
         
@@ -1078,7 +1084,7 @@ class BDENTAL_OT_MPR2(bpy.types.Operator):
         main_ws = bpy.data.workspaces["Bdental Main"]
         scr_main = main_ws.screens[0]
         area3d_main = [a for a in scr_main.areas if a.type == 'VIEW_3D'][0]
-        space_data_main = area3d_main.spaces.active
+        space_data_main = [s for s in area3d_main.spaces if s.type=="VIEW_3D"][0]
         region3d_main = [r for r in area3d_main.regions if r.type == 'WINDOW'][0]
         coll_names_main = ['SLICES']
 
@@ -1097,12 +1103,11 @@ class BDENTAL_OT_MPR2(bpy.types.Operator):
 
         #####################################################
         # hide slices from Bdental Slicer Workspace (area 3d)
-        space_data_slicer_3d = area_slicer_3d.spaces.active
+        space_data_slicer_3d = [s for s in area_slicer_3d.spaces if s.type=="VIEW_3D"][0]
         region_slicer_3d = [r for r in area_slicer_3d.regions if r.type == 'WINDOW'][0]
         coll_names_slicer = ['SLICES']
 
         # if not context.scene.get("bdental_slicer_is_set") :
-        
         space_data_slicer_3d.use_local_collections = True
         for col_name in coll_names_slicer :
             index = getLocalCollIndex(col_name)
@@ -1114,9 +1119,13 @@ class BDENTAL_OT_MPR2(bpy.types.Operator):
                                             region = region_slicer_3d):
                     bpy.ops.object.hide_collection(
                      collection_index=index, toggle=True)
-                    area3D, space3D , region_3d = CtxOverride(context)
-                    with bpy.context.temp_override(area= area3D, space_data=space3D, region = region_3d):
-                        bpy.ops.view3d.view_selected(use_all_regions=False)
+                    
+        with bpy.context.temp_override(workspace=bpy.data.workspaces["Bdental Slicer"],
+                                               screen=scr_slicer,
+                                               area= area_slicer_3d,
+                                            space_data=space_data_slicer_3d,
+                                            region = region_slicer_3d):
+            bpy.ops.view3d.view_selected(use_all_regions=False)
         # bpy.ops.view3d.view_lock_to_active(override_slicer_3d)
         # bpy.ops.view3d.view_all(override_slicer_3d, center=True)
         # space_data_slicer_3d.region_3d.view_matrix = ViewMatrix
@@ -1133,6 +1142,7 @@ class BDENTAL_OT_MPR2(bpy.types.Operator):
                                             space_data=_override["space_data"],
                                             region = _override["region"]):
                 bpy.ops.view3d.view_camera()
+                bpy.ops.view3d.view_center_camera()
                 # print("camera view triggred")
                 if not context.scene.get("bdental_slicer_is_set")==True:
                     for col_name in coll_names:
@@ -1143,7 +1153,7 @@ class BDENTAL_OT_MPR2(bpy.types.Operator):
                             
                     
                 # bpy.ops.view3d.view_selected(use_all_regions=False)
-                bpy.ops.wm.tool_set_by_id(name="builtin.select")
+                # bpy.ops.wm.tool_set_by_id(name="builtin.select")
 
 
        
@@ -1153,7 +1163,7 @@ class BDENTAL_OT_MPR2(bpy.types.Operator):
          space_data_slicer_3d]:
             space_data.shading.type = "MATERIAL"
 
-        bpy.ops.wm.tool_set_by_id(name="builtin.select")
+        # bpy.ops.wm.tool_set_by_id(name="builtin.select")
 
         # space_data_slicer_3d.shading.type = "RENDERED"
         space_data_slicer_3d.shading.use_scene_lights_render = True
@@ -2059,7 +2069,418 @@ class BDENTAL_OT_Volume_Render(bpy.types.Operator):
     # Voxel_Modes = ["FAST", "OPTIMAL", "FULL"]
     # VoxelMode: EnumProperty(items=set_enum_items(
     #     Voxel_Modes), description="Voxel Mode", default="FAST")
-    slices: BoolProperty(default=0)
+    slices : BoolProperty(default=0) # type: ignore
+
+    def VolumeRender(self, context, DcmInfo, GpShader, ShadersBlendFile, VoxelMode):
+        Preffix = DcmInfo["Preffix"]
+
+        Sp = Spacing = DcmInfo["RenderSp"]
+        Sz = Size = DcmInfo["RenderSz"]
+        TransformMatrix = DcmInfo["TransformMatrix"]
+        DimX, DimY, DimZ = (Sz[0] * Sp[0], Sz[1] * Sp[1], Sz[2] * Sp[2])
+        SagittalOffset, CoronalOffset, AxialOffset = Sp
+
+        # AxialPlansList, CoronalPlansList, SagittalPlansList = [], [], []
+        # Load VGS Group Node :
+        VGS = bpy.data.node_groups.get(f"{Preffix}_{GpShader}")
+        if not VGS:
+            filepath = join(ShadersBlendFile, "NodeTree", GpShader)
+            directory = join(ShadersBlendFile, "NodeTree")
+            filename = GpShader
+            bpy.ops.wm.append(filepath=filepath,
+                            filename=filename, directory=directory)
+            VGS = bpy.data.node_groups.get(GpShader)
+            VGS.name = f"{Preffix}_{GpShader}"
+            VGS = bpy.data.node_groups.get(f"{Preffix}_{GpShader}")
+
+        ###################### Change to ORTHO persp with nice view angle :##########
+
+        ViewMatrix = Matrix(
+            (
+                (0.8677, -0.4971, 0.0000, -50),
+                (0.4080, 0.7123, 0.5711, -100),
+                (-0.2839, -0.4956, 0.8209, 50),
+                (0.0000, 0.0000, 0.0000, 1.0000),
+            )
+        )
+        ######################################################################################
+        # Axial Voxels :
+        ######################################################################################
+
+        AxialImagesNamesList = sorted(
+            [img.name for img in bpy.data.images if img.name.startswith(
+                f"{Preffix}_Axial_")]
+        )
+        AxialImagesList = [bpy.data.images[Name] for Name in AxialImagesNamesList]
+
+        print("Volume rendering...")
+        
+        Scene_Settings()
+        for scr in bpy.data.screens:
+            # if scr.name in ["Layout", "Scripting", "Shading"]:
+            areas = [area for area in scr.areas if area.type == "VIEW_3D"]
+            for area in areas:
+                spaces = [sp for sp in area.spaces if sp.type == "VIEW_3D"]
+                for space in spaces:
+                    r3d = space.region_3d
+                    r3d.view_perspective = "ORTHO"
+                    # r3d.view_distance = 800
+                    r3d.view_matrix = ViewMatrix
+                    space.shading.type = "SOLID"
+                    space.shading.color_type = "TEXTURE"
+                    space.overlay.show_overlays = False
+                    r3d.update()
+
+        mesh = AddPlaneMesh(DimX, DimY, "volume_plane")
+        a3d, s3d, r3d = CtxOverride(bpy.context)
+
+        s3d.shading.show_xray = True
+        s3d.shading.xray_alpha = 0.5
+        n = len(AxialImagesList)
+
+        # try :
+            # scr = bpy.context.screen
+            # areas = [area for area in scr.areas if area.type == "VIEW_3D"]
+            # if areas :
+            #     a = areas[0]
+            #     s = a.spaces.active
+            #     s.shading.show_xray = True
+            #     s.shading.xray_alpha = 0.5
+        # except Exception as er :
+        #     print("error when setting xray mode before volume render/n"+er)
+        for i, ImageData in enumerate(AxialImagesList):
+            # # Add Plane :
+            # ##########################################
+            Name = f"{Preffix}_Axial_PLANE_{i}"
+            # mesh = AddPlaneMesh(DimX, DimY, Name)
+            CollName = "CT_Voxel"
+
+            obj = AddPlaneObject(Name, mesh.copy(), CollName)
+            obj.location = (0, 0, i * AxialOffset)
+
+            ##########################################
+            # Add Material :
+            mat = bpy.data.materials.new(f"{Preffix}_Axial_Voxelmat_{i}")
+            mat.use_nodes = True
+            node_tree = mat.node_tree
+            nodes = node_tree.nodes
+            links = node_tree.links
+
+            for node in nodes:
+                if node.type == "OUTPUT_MATERIAL":
+                    materialOutput = node
+                else :
+                    nodes.remove(node)
+
+            # ImageData = bpy.data.images.get(ImagePNG)
+            TextureCoord = AddNode(
+                nodes, type="ShaderNodeTexCoord", name="TextureCoord")
+            ImageTexture = AddNode(
+                nodes, type="ShaderNodeTexImage", name="Image Texture")
+
+            ImageTexture.image = ImageData
+            ImageTexture.extension = 'CLIP'
+
+            ImageData.colorspace_settings.name = "Non-Color"#"sRGB"
+
+            # materialOutput = nodes["Material Output"]
+
+            links.new(TextureCoord.outputs[0], ImageTexture.inputs[0])
+
+            GroupNode = nodes.new("ShaderNodeGroup")
+            GroupNode.node_tree = VGS
+
+            links.new(ImageTexture.outputs["Color"], GroupNode.inputs[0])
+            links.new(GroupNode.outputs[0], materialOutput.inputs["Surface"])
+            
+            mat.blend_method = "CLIP"#"HASHED"  # "CLIP"
+            mat.shadow_method = "CLIP"#"HASHED"
+            obj.active_material = mat
+
+            if i == 0:
+                obj.select_set(True)
+                bpy.context.view_layer.objects.active = obj
+                with bpy.context.temp_override(area= a3d, space_data=s3d, region = r3d):
+                    bpy.ops.view3d.view_selected()
+                # sleep(3)
+            if not(i % 5):
+                _percentage = int(i*100/n)
+                txt = [f"Rendering... {_percentage}%"]
+                BDENTAL_GpuDrawText(message_list=txt,percentage=_percentage,rect_color=BdentalColors.yellow)
+                # sleep(0.05)
+            
+            # bpy.ops.wm.redraw_timer(type='DRAW_SWAP',iterations=1)
+            
+            # r3d.update()
+            # bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+            
+            
+            ############# LOOP END ##############
+            #####################################
+
+        # bpy.ops.view3d.toggle_xray()
+        # Join Planes Make Cube Voxel :
+        bpy.ops.object.select_all(action="DESELECT")
+        
+
+        Col = bpy.data.collections.get("CT_Voxel")
+        if Col:
+            Col.hide_viewport = False
+
+        planes = [o for o in bpy.context.scene.objects if f"{Preffix}_Axial_PLANE_" in o.name]
+        for obj in planes:
+            obj.select_set(True)
+            bpy.context.view_layer.objects.active = obj
+
+        bpy.ops.object.join()
+
+        Voxel_Axial = bpy.context.object
+        MoveToCollection(Voxel_Axial, "CT_Voxel")
+        Voxel_Axial["bdental_type"] = "CT_Voxel"
+
+        Voxel_Axial.name = f"{Preffix}_Axial_CTVolume"
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY", center="MEDIAN")
+        Voxel_Axial.matrix_world.translation = (0, 0, 0)
+
+        Voxel_Axial.matrix_world = TransformMatrix @ Voxel_Axial.matrix_world
+
+        for i in range(3):
+            Voxel_Axial.lock_location[i] = True
+            Voxel_Axial.lock_rotation[i] = True
+            Voxel_Axial.lock_scale[i] = True
+
+        # Voxel_Axial.hide_set(True)
+        ###############################################################################
+        # Coronal Voxels :
+        ###############################################################################
+        # if VoxelMode in ["OPTIMAL", "FULL"]:
+        #     print("Coronal Voxel rendering...")
+        #     CoronalImagesNamesList = sorted(
+        #         [img.name for img in bpy.data.images if img.name.startswith(
+        #             f"{Preffix}_Coronal_")]
+        #     )
+        #     CoronalImagesList = [bpy.data.images[Name]
+        #                          for Name in CoronalImagesNamesList]
+
+        #     for i, ImageData in enumerate(CoronalImagesList):
+        #         # # Add Plane :
+        #         # ##########################################
+        #         Name = f"{Preffix}_Coronal_PLANE_{i}"
+        #         mesh = AddPlaneMesh(DimX, DimZ, Name)
+        #         CollName = "CT_Voxel"
+
+        #         obj = AddPlaneObject(Name, mesh, CollName)
+        #         obj.location = (0, 0, -i * CoronalOffset)
+        #         CoronalPlansList.append(obj)
+
+        #         bpy.ops.object.select_all(action="DESELECT")
+        #         obj.select_set(True)
+        #         bpy.context.view_layer.objects.active = obj
+
+        #         ##########################################
+        #         # Add Material :
+        #         mat = bpy.data.materials.new(f"{Preffix}_Coronal_Voxelmat_{i}")
+        #         mat.use_nodes = True
+        #         node_tree = mat.node_tree
+        #         nodes = node_tree.nodes
+        #         links = node_tree.links
+
+        #         for node in nodes:
+        #             if node.type != "OUTPUT_MATERIAL":
+        #                 nodes.remove(node)
+
+        #         # ImageData = bpy.data.images.get(ImagePNG)
+        #         TextureCoord = AddNode(
+        #             nodes, type="ShaderNodeTexCoord", name="TextureCoord")
+        #         ImageTexture = AddNode(
+        #             nodes, type="ShaderNodeTexImage", name="Image Texture")
+
+        #         ImageTexture.image = ImageData
+        #         ImageTexture.extension = 'CLIP'
+
+        #         ImageData.colorspace_settings.name = "Non-Color"
+
+        #         materialOutput = nodes["Material Output"]
+
+        #         links.new(TextureCoord.outputs[0], ImageTexture.inputs[0])
+
+        #         GroupNode = nodes.new("ShaderNodeGroup")
+        #         GroupNode.node_tree = VGS
+
+        #         links.new(ImageTexture.outputs["Color"], GroupNode.inputs[0])
+        #         links.new(GroupNode.outputs[0], materialOutput.inputs["Surface"])
+        #         for _ in obj.material_slots:
+        #             bpy.ops.object.material_slot_remove()
+
+        #         obj.active_material = mat
+
+        #         mat.blend_method = "HASHED"
+        #         mat.shadow_method = "HASHED"
+        #         # bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+        #         ############# LOOP END ##############
+        #         #####################################
+
+        #     # Join Planes Make Cube Voxel :
+        #     bpy.ops.object.select_all(action="DESELECT")
+        #     for obj in CoronalPlansList:
+        #         obj.select_set(True)
+        #         bpy.context.view_layer.objects.active = obj
+        #     bpy.context.view_layer.layer_collection.children["CT_Voxel"].hide_viewport = False
+        #     bpy.ops.object.join()
+
+        #     Voxel_Coronal = bpy.context.object
+        #     Voxel_Coronal["bdental_type"] = "CT_Voxel"
+
+        #     Voxel_Coronal.name = f"{Preffix}_Coronal_CTVolume"
+        #     bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY", center="MEDIAN")
+        #     Voxel_Coronal.matrix_world.translation = (0, 0, 0)
+        #     bpy.ops.transform.rotate(
+        #         value=-1.5708, orient_axis='X', orient_type='GLOBAL')
+
+        #     Voxel_Coronal.matrix_world = TransformMatrix @ Voxel_Coronal.matrix_world
+
+        #     for i in range(3):
+        #         Voxel_Coronal.lock_location[i] = True
+        #         Voxel_Coronal.lock_rotation[i] = True
+        #         Voxel_Coronal.lock_scale[i] = True
+
+        #     Voxel_Coronal.hide_set(True)
+
+        ###############################################################################
+        # Sagittal Voxels :
+        ###############################################################################
+        # if VoxelMode == "FULL":
+        #     print("Sagittal Voxel rendering...")
+        #     SagittalImagesNamesList = sorted(
+        #         [img.name for img in bpy.data.images if img.name.startswith(
+        #             f"{Preffix}_Sagittal_")]
+        #     )
+        #     SagittalImagesList = [bpy.data.images[Name]
+        #                           for Name in SagittalImagesNamesList]
+
+        #     for i, ImageData in enumerate(SagittalImagesList):
+        #         # # Add Plane :
+        #         # ##########################################
+        #         Name = f"{Preffix}_Sagittal_PLANE_{i}"
+        #         mesh = AddPlaneMesh(DimY, DimZ, Name)
+        #         CollName = "CT_Voxel"
+
+        #         obj = AddPlaneObject(Name, mesh, CollName)
+        #         obj.location = (0, 0, i * SagittalOffset)
+        #         SagittalPlansList.append(obj)
+
+        #         bpy.ops.object.select_all(action="DESELECT")
+        #         obj.select_set(True)
+        #         bpy.context.view_layer.objects.active = obj
+
+        #         ##########################################
+        #         # Add Material :
+        #         mat = bpy.data.materials.new(f"{Preffix}_Sagittal_Voxelmat_{i}")
+        #         mat.use_nodes = True
+        #         node_tree = mat.node_tree
+        #         nodes = node_tree.nodes
+        #         links = node_tree.links
+
+        #         for node in nodes:
+        #             if node.type != "OUTPUT_MATERIAL":
+        #                 nodes.remove(node)
+
+        #         # ImageData = bpy.data.images.get(ImagePNG)
+        #         TextureCoord = AddNode(
+        #             nodes, type="ShaderNodeTexCoord", name="TextureCoord")
+        #         ImageTexture = AddNode(
+        #             nodes, type="ShaderNodeTexImage", name="Image Texture")
+
+        #         ImageTexture.image = ImageData
+        #         ImageTexture.extension = 'CLIP'
+
+        #         ImageData.colorspace_settings.name = "Non-Color"
+
+        #         materialOutput = nodes["Material Output"]
+
+        #         links.new(TextureCoord.outputs[0], ImageTexture.inputs[0])
+
+        #         GroupNode = nodes.new("ShaderNodeGroup")
+        #         GroupNode.node_tree = VGS
+
+        #         links.new(ImageTexture.outputs["Color"], GroupNode.inputs[0])
+        #         links.new(GroupNode.outputs[0], materialOutput.inputs["Surface"])
+        #         for _ in obj.material_slots:
+        #             bpy.ops.object.material_slot_remove()
+
+        #         obj.active_material = mat
+
+        #         mat.blend_method = "HASHED"
+        #         mat.shadow_method = "HASHED"
+        #         # bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+        #         ############# LOOP END ##############
+        #         #####################################
+
+        #     # Join Planes Make Cube Voxel :
+        #     bpy.ops.object.select_all(action="DESELECT")
+        #     for obj in SagittalPlansList:
+        #         obj.select_set(True)
+        #         bpy.context.view_layer.objects.active = obj
+        #     bpy.context.view_layer.layer_collection.children["CT_Voxel"].hide_viewport = False
+        #     bpy.ops.object.join()
+
+        #     Voxel_Sagittal = bpy.context.object
+        #     Voxel_Sagittal["bdental_type"] = "CT_Voxel"
+
+        #     Voxel_Sagittal.name = f"{Preffix}_Sagittal_CTVolume"
+        #     bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY", center="MEDIAN")
+        #     Voxel_Sagittal.matrix_world.translation = (0, 0, 0)
+
+        #     bpy.ops.transform.rotate(
+        #         value=-1.5708, orient_axis='X', orient_type='GLOBAL')
+        #     bpy.ops.transform.rotate(
+        #         value=-1.5708, orient_axis='Z', orient_type='GLOBAL')
+
+        #     Voxel_Sagittal.matrix_world = TransformMatrix @ Voxel_Sagittal.matrix_world
+
+        #     for i in range(3):
+        #         Voxel_Sagittal.lock_location[i] = True
+        #         Voxel_Sagittal.lock_rotation[i] = True
+        #         Voxel_Sagittal.lock_scale[i] = True
+
+        #     Voxel_Sagittal.hide_set(True)
+
+        # Voxel_Axial.hide_set(False)
+        ######################## Set Render settings : #############################
+        # Scene_Settings()
+        ###############################################################################################
+        bpy.ops.object.select_all(action="DESELECT")
+        Voxel_Axial.select_set(True)
+        bpy.context.view_layer.objects.active = Voxel_Axial
+        with bpy.context.temp_override(area= a3d, space_data=s3d, region = r3d):
+            bpy.ops.view3d.view_selected()
+        
+
+        # ###################### Change to ORTHO persp with nice view angle :##########
+
+        # ViewMatrix = Matrix(
+        #     (
+        #         (0.8677, -0.4971, 0.0000, 4.0023),
+        #         (0.4080, 0.7123, 0.5711, -14.1835),
+        #         (-0.2839, -0.4956, 0.8209, -94.0148),
+        #         (0.0000, 0.0000, 0.0000, 1.0000),
+        #     )
+        # )
+        for scr in bpy.data.screens:
+            # if scr.name in ["Layout", "Scripting", "Shading"]:
+            for area in [ar for ar in scr.areas if ar.type == "VIEW_3D"]:
+                for space in [sp for sp in area.spaces if sp.type == "VIEW_3D"]:
+                    # r3d = space.region_3d
+                    space.shading.type = "MATERIAL"
+                    space.overlay.show_overlays = True
+
+                    # r3d.update()
+
+        # bpy.ops.view3d.view_selected()
+        # bpy.ops.view3d.view_selected()
+        # bpy.ops.object.select_all(action="DESELECT")
+
+
 
     def execute(self, context):
         message = ["Loading SCAN data ..."]
@@ -2122,7 +2543,7 @@ class BDENTAL_OT_Volume_Render(bpy.types.Operator):
 
             Preffix = DcmInfo["Preffix"]
             print("\n##########################\n")
-            VolumeRender(DcmInfo, GpShader, DataBlendFile, "FAST",update_info)
+            self.VolumeRender(context,DcmInfo, GpShader, DataBlendFile, "FAST")
             print("setting volumes...")
             scn = bpy.context.scene
             scn.render.engine = "BLENDER_EEVEE_NEXT"
@@ -5249,6 +5670,81 @@ class BDENTAL_OT_GuideFinalise(bpy.types.Operator):
         print(message)
         return {"FINISHED"}
 
+
+class BDENTAL_OT_GuideFinaliseGeonodes(bpy.types.Operator):
+    """Guide finalise using geonodes boolean"""
+
+    bl_idname = "wm.bdental_guide_finalise_geonodes"
+    bl_label = "Guide Finalise Geonodes"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        coll = bpy.data.collections.get("GUIDE Components")
+        if coll and coll.objects:
+            return True
+        else:
+            return False
+
+    def execute(self, context):
+        start = tpc()
+        global BOOL_NODE, GUIDE_NAME
+        colname = "GUIDE Components"
+        coll = bpy.data.collections.get(colname)
+        hide_collection(False, colname)
+        
+        guide_components = coll.objects
+        add_components = [obj for obj in guide_components if obj.name.startswith("_ADD_")]
+        if not add_components:
+            message = ["Cancelled : Can't find Guide _ADD_ Components !"]
+            BDENTAL_GpuDrawText(message)
+            sleep(3)
+            BDENTAL_GpuDrawText()
+            return {"CANCELLED"}
+        cut_components = [obj for obj in guide_components if not obj.name.startswith("_ADD_")]
+
+        message = ["Making guide components duplicates..."]
+        BDENTAL_GpuDrawText(message)
+
+        add_coll, cut_coll = finalize_geonodes_make_dup_colls(context,guide_components,add_components,cut_components)
+        guide = AppendObject(GUIDE_NAME,context.scene.collection.name)
+        suffix = 1
+        for obj in bpy.context.scene.objects :
+            if GUIDE_NAME in obj.name :
+                suffix+=1
+        guide.name += f"_{suffix}"
+        gn = bpy.data.node_groups.get(BOOL_NODE)
+        gn.nodes["collection_add"].inputs[0].default_value = add_coll
+        gn.nodes["collection_cut"].inputs[0].default_value = cut_coll
+        context.view_layer.objects.active = guide
+        bpy.ops.object.convert(target="MESH")
+        mat = bpy.data.materials.get(
+            "Splint_mat") or bpy.data.materials.new(name="Splint_mat")
+        mat.diffuse_color = [0.0, 0.23, 0.28, 1.0]
+        mat.use_nodes = True
+        nodes = mat.node_tree.nodes
+        pbsdf_node = [n for n in nodes if n.type =='BSDF_PRINCIPLED'][0]
+        pbsdf_node.inputs[0].default_value = [0.0, 0.23, 0.28, 1.0]
+        for mat_slot in guide.material_slots:
+            bpy.ops.object.material_slot_remove()
+        guide.active_material = mat
+        coll.hide_viewport = True
+
+        for coll in [add_coll,cut_coll] :
+            for obj in coll.objects :
+                bpy.data.objects.remove(obj)
+            bpy.data.collections.remove(coll)
+        
+        
+        end = tpc()
+        sleep(1)
+        message = [f"Finished in {round(end-start)} seconds."]
+        BDENTAL_GpuDrawText(message)
+        sleep(3)
+        BDENTAL_GpuDrawText()
+        os.system("cls")
+        print(message)
+        return {"FINISHED"}
 
 
 class BDENTAL_OT_AddGuideCuttersFromSleeves(bpy.types.Operator):
@@ -13208,6 +13704,7 @@ class BDENTAL_OT_PathCutter(bpy.types.Operator):
 # Registration :
 #################################################################################################
 classes = [
+    BDENTAL_OT_GuideFinaliseGeonodes,
     BDENTAL_OT_AddFixingPin,
     BDENTAL_OT_AddCustomSleeveCutter,
     BDENTAL_OT_AssetBrowserToggle,

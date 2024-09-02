@@ -465,8 +465,6 @@ class BDENTAL_PT_Guide(bpy.types.Panel):
         row = Box.row()
         row.operator("wm.bdental_guide_add_component")
         
-
-
         # row = Box.row()
         # row.operator("wm.bdental_set_guide_components", icon="PLUS")
         # row = Box.row()
@@ -477,6 +475,11 @@ class BDENTAL_PT_Guide(bpy.types.Panel):
         
         row = Box.row()
         row.operator("wm.bdental_guide_finalise")
+        row = Box.row()
+        row.operator("wm.bdental_guide_finalise_geonodes")
+        
+
+
 
 ####################################################################
 class BDENTAL_PT_Align(bpy.types.Panel):

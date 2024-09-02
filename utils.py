@@ -51,6 +51,8 @@ ADDON_VER_DATE = "  "
 BDENTAL_MODULES = join(ADDON_DIR, "bdental_modules")
 
 DRAW_HANDLERS=[]
+BOOL_NODE ="boolean_geonode"
+GUIDE_NAME = "Bdental_guide"
 
 def bdental_log(txt_list,header=None,footer=None):
     _header, _footer = header, footer
@@ -296,7 +298,7 @@ class BDENTAL_GpuDrawText() :
                 message_list = [],
                 remove_handlers=True,
                 button=False,
-                pourcentage=100,
+                percentage=100,
                 redraw_timer=True,
                 rect_color=BdentalColors.default,
                 txt_color = BdentalColors.black,
@@ -308,7 +310,7 @@ class BDENTAL_GpuDrawText() :
         self.message_list=message_list
         self.remove_handlers=remove_handlers
         self.button=button
-        self.pourcentage=pourcentage
+        self.percentage=percentage
         self.redraw_timer=redraw_timer
         self.rect_color=rect_color
         
@@ -331,14 +333,14 @@ class BDENTAL_GpuDrawText() :
 
     def gpu_info_footer(self):
         
-        if self.pourcentage <= 0:
-            self.pourcentage = 1
-        if self.pourcentage > 100:
-            self.pourcentage = 100
+        if self.percentage <= 0:
+            self.percentage = 1
+        if self.percentage > 100:
+            self.percentage = 100
 
         def draw_callback_function():
 
-            w = int(bpy.context.area.width * (self.pourcentage/100))
+            w = int(bpy.context.area.width * (self.percentage/100))
             for i, txt in enumerate((reversed(self.message_list))):
 
                 self.draw_gpu_rect(self.offset_horizontal, (self.rect_height*i)+self.offset_vertical, w-self.offset_horizontal, self.rect_height, self.rect_color)
