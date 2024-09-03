@@ -62,28 +62,51 @@ class BDENTAL_PT_GeneralPanel(bpy.types.Panel):
 
     def draw(self, context):
         BDENTAL_Props = context.scene.BDENTAL_Props
+        _alert=False
+        if bpy.data.is_dirty : _alert=True 
 
         # Draw Addon UI :
         layout = self.layout
         #######################
         Box = layout.box()
-        grid = Box.grid_flow(columns=2, align=True)
-        # grid.label(text="Project Directory")
-        grid.prop(BDENTAL_Props, "UserProjectDir", text="Project Directory")
-        grid = Box.grid_flow(columns=2, align=True)
+        r = Box.row(align=True)
+        r.prop(BDENTAL_Props, "UserProjectDir", text="Project Directory")
 
-        grid.operator("wm.open_mainfile", text="Open", icon="FILE_FOLDER")
-        grid.operator("ed.undo", text="Undo", icon="LOOP_BACK")
-        grid.operator("wm.save_mainfile", text="Save", icon="FOLDER_REDIRECT")
-        grid.operator("wm.bdental_import_mesh", icon="IMPORT")
+        r = Box.row(align=True)
+        r.operator("wm.open_mainfile", text="Open", icon="FILE_FOLDER")
+        r.operator("wm.bdental_remove_info_footer", icon="CANCEL")
+
+        r = Box.row(align=True)
+        r.operator("ed.undo", text="Undo", icon="LOOP_BACK")
+        r.operator("ed.redo", text="Redo", icon="LOOP_FORWARDS")
+
+        r = Box.row(align=True)
+        r.alert = _alert
+        r.operator("wm.save_mainfile", text="Save", icon="FOLDER_REDIRECT")
+        r.operator("wm.save_as_mainfile", text="Save As...", icon="FILE_BLEND")
+
+        r = Box.row(align=True)
+        r.operator("wm.bdental_import_mesh", icon="IMPORT")
+        r.operator("wm.bdental_export_mesh", icon="EXPORT")
+
+        # grid = Box.grid_flow(columns=2, align=True)
+        # # grid.label(text="Project Directory")
+        # grid.prop(BDENTAL_Props, "UserProjectDir", text="Project Directory")
+        # grid = Box.grid_flow(columns=2, align=True)
+
+        # grid.operator("wm.open_mainfile", text="Open", icon="FILE_FOLDER")
+        # grid.operator("ed.undo", text="Undo", icon="LOOP_BACK")
+        
+        # grid.operator("wm.save_mainfile", text="Save", icon="FOLDER_REDIRECT",alert=True)
+        # grid.operator("wm.bdental_import_mesh", icon="IMPORT")
         # grid.operator("wm.stl_import", icon="IMPORT")
 
 
-        grid.operator("wm.bdental_remove_info_footer", icon="CANCEL")
-        grid.operator("ed.redo", text="Redo", icon="LOOP_FORWARDS")
+        # grid.operator("wm.bdental_remove_info_footer", icon="CANCEL")
+        # grid.operator("ed.redo", text="Redo", icon="LOOP_FORWARDS")
         
-        grid.operator("wm.save_as_mainfile", text="Save As...", icon="FILE_BLEND")
-        grid.operator("wm.bdental_export_mesh", icon="EXPORT")
+        # grid.operator("wm.save_as_mainfile", text="Save As...", icon="FILE_BLEND")
+        # grid.operator("wm.bdental_export_mesh", icon="EXPORT")
         
 class BDENTAL_PT_DicomPanel(bpy.types.Panel):
     """Dicom Panel"""

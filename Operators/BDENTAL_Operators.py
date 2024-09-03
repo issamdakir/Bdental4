@@ -641,11 +641,11 @@ class BDENTAL_OT_ExportMesh(bpy.types.Operator):
         ext = self.scan_extention
 
         if ext == 'STL':
-            bpy.ops.wm.stl_export("INVOKE_DEFAULT",  use_selection=True)
+            bpy.ops.wm.stl_export("INVOKE_DEFAULT",  export_selected_objects=True)
         if ext == 'OBJ':
-            bpy.ops.wm.obj_export("INVOKE_DEFAULT",  use_selection=True)
+            bpy.ops.wm.obj_export("INVOKE_DEFAULT",  export_selected_objects=True)
         if ext == 'PLY':
-            bpy.ops.wm.ply_export("INVOKE_DEFAULT",  use_selection=True)
+            bpy.ops.wm.ply_export("INVOKE_DEFAULT",  export_selected_objects=True)
 
         return {"FINISHED"}
 
