@@ -27,10 +27,10 @@ BLF_INFO = {
 }
 REPO_URL = "https://github.com/issamdakir/Bdental4/zipball/main"
 VERSION_URL = "https://raw.githubusercontent.com/issamdakir/Bdental4/main/Resources/BDENTAL_Version.txt"
-ADDON_UPDATE_URL = "https://github.com/issamdakir/Bdental4-update/zipball/main"
-UPDATE_VERSION_URL = "https://raw.githubusercontent.com/issamdakir/Bdental4-update/main/data/BDENTAL_Version.txt"
-GITHUB_CMD = "curl -L https://github.com/issamdakir/Bdental4-win/zipball/main"
-TELEGRAM_LINK = "https://t.me/bdental4"
+ADDON_UPDATE_URL = "https://github.com/issamdakir/Bdental4_update/zipball/main"
+UPDATE_VERSION_URL = "https://raw.githubusercontent.com/issamdakir/Bdental4_update/main/data/BDENTAL_Version.txt"
+GITHUB_CMD = "curl -L https://github.com/issamdakir/Bdental4/zipball/main"
+TELEGRAM_LINK = "https://t.me/bdental3"
 REQ_DICT = {
     "SimpleITK": "SimpleITK",
     "vtk": "vtk",

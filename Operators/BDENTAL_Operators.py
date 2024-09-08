@@ -48,6 +48,7 @@ from ..utils import (
     BDENTAL_LIB_NAME,
     BOOL_NODE,
     GUIDE_NAME,
+    bdental_log,
 )
 
 
@@ -1094,7 +1095,10 @@ class BDENTAL_OT_MPR2(bpy.types.Operator):
         for col_name in coll_names_main :
             index = getLocalCollIndex(col_name)
             if index :
-                with bpy.context.temp_override(area= area3d_main,
+                with bpy.context.temp_override(
+                                            workspace=main_ws,
+                                            screen=scr_main,
+                                            area= area3d_main,
                                             space_data=space_data_main,
                                             region = region3d_main):
                     bpy.ops.object.hide_collection(
@@ -1143,6 +1147,7 @@ class BDENTAL_OT_MPR2(bpy.types.Operator):
                                             region = _override["region"]):
                 bpy.ops.view3d.view_camera()
                 bpy.ops.view3d.view_center_camera()
+                bpy.ops.wm.tool_set_by_id(name="builtin.select")
                 # print("camera view triggred")
                 if not context.scene.get("bdental_slicer_is_set")==True:
                     for col_name in coll_names:
@@ -1153,7 +1158,6 @@ class BDENTAL_OT_MPR2(bpy.types.Operator):
                             
                     
                 # bpy.ops.view3d.view_selected(use_all_regions=False)
-                # bpy.ops.wm.tool_set_by_id(name="builtin.select")
 
 
        
@@ -1173,7 +1177,7 @@ class BDENTAL_OT_MPR2(bpy.types.Operator):
 
         ################################################
         context.scene.BDENTAL_Props.slices_brightness = 0.0
-        context.scene.BDENTAL_Props.slices_contrast = 0.2
+        context.scene.BDENTAL_Props.slices_contrast = 0.0
         context.scene["bdental_slicer_is_set"] = True
         return {"FINISHED"}
 
@@ -1263,7 +1267,19 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
 
     bl_idname = "wm.bdental_organize"
     bl_label = "ORGANIZE DICOM"
+    
+    @classmethod
+    def poll(cls, context):
+        
+        projpath = AbsPath(context.scene.BDENTAL_Props.UserProjectDir)
+        datapath = AbsPath(context.scene.BDENTAL_Props.UserImageFile)
+        if context.scene.BDENTAL_Props.DataType == "DICOM Series":
+            datapath = AbsPath(context.scene.BDENTAL_Props.UserDcmDir)
 
+        is_valid = exists(projpath) and exists(datapath)
+       
+        return is_valid
+        
     def execute(self, context):
         BDENTAL_Props = context.scene.BDENTAL_Props
         if BDENTAL_Props.DataType == "DICOM Series":
@@ -1275,108 +1291,110 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
 
             DcmOrganizeDict = eval(BDENTAL_Props.DcmOrganize)
 
-            if UserDcmDir in DcmOrganizeDict.keys():
-                OrganizeReport = DcmOrganizeDict[UserDcmDir]
+            # if UserDcmDir in DcmOrganizeDict.keys():
+            #     OrganizeReport = DcmOrganizeDict[UserDcmDir]
                 
 
-            else:
-                if not exists(UserProjectDir):
-                    txt = [
-                        " Project Directory is not valid ! "]
-                    BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
-                    sleep(2)
-                    BDENTAL_GpuDrawText()
-                    return {"CANCELLED"}
+            # else:
+            # if not exists(UserProjectDir):
+            #     txt = [
+            #         " Project Directory is not valid ! "]
+            #     BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
+            #     sleep(2)
+            #     BDENTAL_GpuDrawText()
+            #     return {"CANCELLED"}
 
-                if not exists(UserDcmDir):
-                    txt = [" The Selected dicom directory is not valid ! "]
-                    BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
-                    sleep(2)
-                    BDENTAL_GpuDrawText()
-                    return {"CANCELLED"}
+            # if not exists(UserDcmDir):
+            #     txt = [" The Selected dicom directory is not valid ! "]
+            #     BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
+            #     sleep(2)
+            #     BDENTAL_GpuDrawText()
+            #     return {"CANCELLED"}
 
-                if not os.listdir(UserDcmDir):
-                    txt = ["No files found in dicom directory ! "]
-                    BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
-                    sleep(2)
-                    BDENTAL_GpuDrawText()
-                    return {"CANCELLED"}
+            if not os.listdir(UserDcmDir):
+                txt = ["No files found in dicom directory ! "]
+                BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
+                sleep(2)
+                BDENTAL_GpuDrawText()
+                return {"CANCELLED"}
 
-                Series_reader = sitk.ImageSeriesReader()
+            Series_reader = sitk.ImageSeriesReader()
 
-                try:
-                    series_IDs_Files = []
-                    for i, S_ID in enumerate(Series_reader.GetGDCMSeriesIDs(UserDcmDir)):
-                        print(i)
-                        series_IDs_Files.append(
-                            [S_ID, Series_reader.GetGDCMSeriesFileNames(UserDcmDir, S_ID)])
-                    
-                except:
-                    txt = ["scan data is not valid !"]
-                    BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
-                    sleep(2)
-                    BDENTAL_GpuDrawText()
-                    return {"CANCELLED"}
+            try:
+                series_IDs_Files = []
+                for i, S_ID in enumerate(Series_reader.GetGDCMSeriesIDs(UserDcmDir)):
+                    # print(i)
+                    series_IDs_Files.append(
+                        [S_ID, Series_reader.GetGDCMSeriesFileNames(UserDcmDir, S_ID)])
+                    message = [f"Dicom series total = {i+1} ..."]
+                    BDENTAL_GpuDrawText(message)
+            except:
+                txt = ["scan data is not valid !"]
+                BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
+                sleep(2)
+                BDENTAL_GpuDrawText()
+                return {"CANCELLED"}
 
-                tags = dict(
-                    {
-                        "Patient Name": "0010|0010",
-                        "Series Date": "0008|0021",
-                        "Series Description": "0008|103E",
-                        "Patient Orientation": "0020|0020",  # 0x20, 0x20
-                    }
-                )
-                DcmOrganizeDict[UserDcmDir] = {}
-                for [S_ID, FilesList] in series_IDs_Files:
-                    count = len(FilesList)
-                    DcmOrganizeDict[UserDcmDir][S_ID] = {
-                        "Count": count
-                    }  # ,'Files':FilesList}
+            tags = dict(
+                {
+                    "Patient Name": "0010|0010",
+                    "Series Date": "0008|0021",
+                    "Series Description": "0008|103E",
+                    "Patient Orientation": "0020|0020",  # 0x20, 0x20
+                }
+            )
+            DcmOrganizeDict[UserDcmDir] = {}
+            for [S_ID, FilesList] in series_IDs_Files:
+                count = len(FilesList)
+                DcmOrganizeDict[UserDcmDir][S_ID] = {
+                    "Count": count
+                }  # ,'Files':FilesList}
 
-                    file0 = FilesList[0]
-                    reader = sitk.ImageFileReader()
-                    reader.SetFileName(file0)
-                    reader.LoadPrivateTagsOn()
-                    reader.ReadImageInformation()
+                file0 = FilesList[0]
+                reader = sitk.ImageFileReader()
+                reader.SetFileName(file0)
+                reader.LoadPrivateTagsOn()
+                reader.ReadImageInformation()
 
-                    Image = reader.Execute()
-                    Spacing = Image.GetSpacing()[:2]
-                    print(Spacing)
-                    BDENTAL_Props.scan_resolution = max(Spacing)
+                Image = reader.Execute()
+                Spacing = Image.GetSpacing()[:2]
+                # print(Spacing)
+                # BDENTAL_Props.scan_resolution = max(Spacing)
 
-                    for attribute, tag in tags.items():
+                for attribute, tag in tags.items():
 
-                        if tag in Image.GetMetaDataKeys():
-                            v = Image.GetMetaData(tag)
+                    if tag in Image.GetMetaDataKeys():
+                        v = Image.GetMetaData(tag)
 
-                        else:
-                            v = "-------"
+                    else:
+                        v = "-------"
 
-                        DcmOrganizeDict[UserDcmDir][S_ID][attribute] = v
+                    DcmOrganizeDict[UserDcmDir][S_ID][attribute] = v
 
-                    DcmOrganizeDict[UserDcmDir][S_ID]["Files"] = FilesList
-                    DcmOrganizeDict[UserDcmDir][S_ID]["spacing"] = Spacing
+                DcmOrganizeDict[UserDcmDir][S_ID]["Files"] = FilesList
+                DcmOrganizeDict[UserDcmDir][S_ID]["spacing"] = Spacing
 
-                SortedList = sorted(
-                    DcmOrganizeDict[UserDcmDir].items(),
-                    key=lambda x: x[1]["Count"],
-                    reverse=True,
-                )
-                # Sorted = list(sorted(DcmOrganizeDict[UserDcmDir], reverse=True))
+            SortedList = sorted(
+                DcmOrganizeDict[UserDcmDir].items(),
+                key=lambda x: x[1]["Count"],
+                reverse=True,
+            )
+            # Sorted = list(sorted(DcmOrganizeDict[UserDcmDir], reverse=True))
 
-                SortedOrganizeDict = {}
-                for i, (k, v) in enumerate(SortedList):
-                    SortedOrganizeDict[
-                        f"Series-{i} ({v['Count']} files)"
-                    ] = DcmOrganizeDict[UserDcmDir][k]
-                # for k,v in SortedOrganizeDict.items():
-                #     print(k,' : ',v['Count'])
+            SortedOrganizeDict = {}
+            for i, (k, v) in enumerate(SortedList):
+                SortedOrganizeDict[
+                    f"Series-{i} ({v['Count']} files)"
+                ] = DcmOrganizeDict[UserDcmDir][k]
+            # for k,v in SortedOrganizeDict.items():
+            #     print(k,' : ',v['Count'])
 
-                DcmOrganizeDict[UserDcmDir] = SortedOrganizeDict
-                BDENTAL_Props.DcmOrganize = str(DcmOrganizeDict)
-                OrganizeReport = SortedOrganizeDict
+            DcmOrganizeDict[UserDcmDir] = SortedOrganizeDict
+            BDENTAL_Props.DcmOrganize = str(DcmOrganizeDict)
+            OrganizeReport = SortedOrganizeDict
 
             Message = {}
+            txt = []
             for serie, info in OrganizeReport.items():
                 Count, Name, Date, Descript, PatientOrientation, spacing = (
                     info["Count"],
@@ -1393,9 +1411,13 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
                     "Series Description": Descript,
                     "Patient Orientation": PatientOrientation,
                 }
+                txt.append(f"{serie} : {Count} slices")
+            txt.insert(0,f"Name : {Name}")
+            txt.insert(1,f"Date : {Date}")
+            txt.insert(2,f"scan resolution : {spacing[0]}")
             BDENTAL_Props.scan_resolution = max(spacing)
-            for serie, info in Message.items():
-                print(serie, ":\n\t", info)
+            # for serie, info in Message.items():
+            #     print(serie, ":\n\t", info)
 
             BDENTAL_Props.OrganizeInfoProp = str(Message)
             # Save Blend File :
@@ -1409,12 +1431,17 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
             # BDENTAL_Props.UserProjectDir = RelPath(UserProjectDir)
 
 
-            n = len(OrganizeReport)
-            txt = [
-                f"{n} dicom series found."]
-            if n == 1 :
-                txt = ["1 dicom serie found."]
+            # n = len(OrganizeReport)
+            # txt = [
+            #     f"{n} dicom series found."]
+            # if n == 1 :
+            #     txt = ["1 dicom serie found."]
+            # txt = list(Message.items())
+            # print(txt)
             
+            BDENTAL_GpuDrawText(message_list=txt)
+            sleep(5)
+            txt = ["Finished."]
             BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.green)
 
         else:
@@ -1426,76 +1453,73 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
 
             DcmOrganizeDict = eval(BDENTAL_Props.DcmOrganize)
 
-            if UserImageFile in DcmOrganizeDict.keys():
-                OrganizeReport = DcmOrganizeDict[UserImageFile]
+            # if UserImageFile in DcmOrganizeDict.keys():
+            #     OrganizeReport = DcmOrganizeDict[UserImageFile]
 
-            else:
-                if not exists(UserProjectDir):
-                    txt = [
-                        " The Selected Project Directory is not valid ! "]
-                    BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
-                    sleep(2)
-                    BDENTAL_GpuDrawText()
-                    return {"CANCELLED"}
+            # else:
+                # if not exists(UserProjectDir):
+                #     txt = [
+                #         " The Selected Project Directory is not valid ! "]
+                #     BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
+                #     sleep(2)
+                #     BDENTAL_GpuDrawText()
+                #     return {"CANCELLED"}
 
-                if not exists(UserImageFile):
-                    txt = [
-                        " The Selected 3D Image filepath is not valid ! "]
-                    BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
-                    sleep(2)
-                    BDENTAL_GpuDrawText()
-                    return {"CANCELLED"}
+            try:
+                reader = sitk.ImageFileReader()
+                reader.SetFileName(UserImageFile)
+                reader.LoadPrivateTagsOn()
+                reader.ReadImageInformation()
 
-                try:
-                    reader = sitk.ImageFileReader()
-                    reader.SetFileName(UserImageFile)
-                    reader.LoadPrivateTagsOn()
-                    reader.ReadImageInformation()
+                Image = reader.Execute()
+            except Exception as e:
+                print("error reding 3D Image file :!")
+                print("path : ", abspath(UserImageFile))
+                print("error : ", e)
+                txt = [f"Can't open 3D Image file !"]
+                BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
+                sleep(2)
+                BDENTAL_GpuDrawText()
+                return {"CANCELLED"}
 
-                    Image = reader.Execute()
-                except Exception as e:
-                    print("error reding 3D Image file :!")
-                    print("path : ", abspath(UserImageFile))
-                    print("error : ", e)
-                    txt = [f"Can't open 3D Image file !"]
-                    BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
-                    sleep(2)
-                    BDENTAL_GpuDrawText()
-                    return {"CANCELLED"}
+            tags = dict(
+                {
+                    "Patient Name": "0010|0010",
+                    # "Patient Orientation": "0020|0020",  # 0x20, 0x20
+                }
+            )
+            DcmOrganizeDict[UserImageFile] = {}
+            Sp = Spacing = Image.GetSpacing()
+            BDENTAL_Props.scan_resolution = max(Sp)
 
-                tags = dict(
-                    {
-                        "Patient Name": "0010|0010",
-                        "Patient Orientation": "0020|0020",  # 0x20, 0x20
-                    }
-                )
-                DcmOrganizeDict[UserImageFile] = {}
-                Sp = Spacing = Image.GetSpacing()
-                BDENTAL_Props.scan_resolution = max(Sp)
+            for attribute, tag in tags.items():
 
-                for attribute, tag in tags.items():
+                if tag in Image.GetMetaDataKeys():
+                    v = Image.GetMetaData(tag)
 
-                    if tag in Image.GetMetaDataKeys():
-                        v = Image.GetMetaData(tag)
+                else:
+                    v = "-------"
 
-                    else:
-                        v = "-------"
+                DcmOrganizeDict[UserImageFile][attribute] = v
 
-                    DcmOrganizeDict[UserImageFile][attribute] = v
+            DcmOrganizeDict[UserImageFile]["spacing"] = Sp
+            BDENTAL_Props.DcmOrganize = str(DcmOrganizeDict)
+            # OrganizeReport = DcmOrganizeDict
 
-                DcmOrganizeDict[UserImageFile]["spacing"] = Sp
-                BDENTAL_Props.DcmOrganize = str(DcmOrganizeDict)
-                OrganizeReport = DcmOrganizeDict
-
-                for k, v in OrganizeReport.items():
-                    print(k, ":\n\t", v)
-
-                # Save Blend File :
-                bpy.ops.wm.save_mainfile()
-                BDENTAL_Props.UserProjectDir = RelPath(UserProjectDir)
-                txt = ["Finished."]
-                BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.green)
-
+            _name = "Anonymous data"
+            _name_tag = "0010|0010"
+            if _name_tag in Image.GetMetaDataKeys():
+                _name = Image.GetMetaData(_name_tag)
+            txt = [
+                f'Name : {_name}',
+                f'Scan resolution  : {max(Sp)}',
+            ]
+            
+            BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.green)
+            sleep(5)
+            # Save Blend File :
+            BDENTAL_Props.UserProjectDir = RelPath(UserProjectDir)
+            
                 # Save Blend File :
                 # ProjectName = BDENTAL_Props.ProjectNameProp
                 # BlendFile = f"{ProjectName}.blend"
@@ -1505,6 +1529,7 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
 
         sleep(1)
         BDENTAL_GpuDrawText()
+        # Save Blend File :
         bpy.ops.wm.save_mainfile()
 
         return {"FINISHED"}
@@ -1537,6 +1562,7 @@ def Load_Dicom_funtion(context, series_file_names, q, voxel_mode):
 
     # Get Preffix and save file :
     DcmInfoDict = eval(BDENTAL_Props.DcmInfo)
+    # DcmInfoDict = {k:v for k,v in DcmInfoDict.items() if context.scene.objects.get(k+"_Axial_CTVolume")}
     Preffixs = list(DcmInfoDict.keys())
 
     for i in range(1, 100):
@@ -1819,6 +1845,8 @@ def Load_3DImage_function(context, q, voxel_mode):
         ####################################
         # Get Preffix and save file :
         DcmInfoDict = eval(BDENTAL_Props.DcmInfo)
+        # DcmInfoDict = {k:v for k,v in DcmInfoDict.items() if context.scene.objects.get(k+"_Axial_CTVolume")}
+
         Preffixs = list(DcmInfoDict.keys())
 
         for i in range(1, 100):
@@ -2071,6 +2099,18 @@ class BDENTAL_OT_Volume_Render(bpy.types.Operator):
     #     Voxel_Modes), description="Voxel Mode", default="FAST")
     slices : BoolProperty(default=0) # type: ignore
 
+    def is_ready(self,context) :
+        self.bprops = context.scene.BDENTAL_Props
+        self.datadict = eval(self.bprops.DcmOrganize)
+        if self.bprops.DataType == "DICOM Series":
+            self.datapath = AbsPath(self.bprops.UserDcmDir)
+        elif self.bprops.DataType == "3D Image File":
+            self.datapath = AbsPath(self.bprops.UserImageFile)
+
+        if self.datapath in self.datadict.keys() :
+            return True
+        return False
+
     def VolumeRender(self, context, DcmInfo, GpShader, ShadersBlendFile, VoxelMode):
         Preffix = DcmInfo["Preffix"]
 
@@ -2206,7 +2246,7 @@ class BDENTAL_OT_Volume_Render(bpy.types.Operator):
             if not(i % 5):
                 _percentage = int(i*100/n)
                 txt = [f"Rendering... {_percentage}%"]
-                BDENTAL_GpuDrawText(message_list=txt,percentage=_percentage,rect_color=BdentalColors.yellow)
+                BDENTAL_GpuDrawText(message_list=txt,percentage=_percentage)
                 # sleep(0.05)
             
             # bpy.ops.wm.redraw_timer(type='DRAW_SWAP',iterations=1)
@@ -2483,53 +2523,34 @@ class BDENTAL_OT_Volume_Render(bpy.types.Operator):
 
 
     def execute(self, context):
-        message = ["Loading SCAN data ..."]
-        BDENTAL_GpuDrawText(message)
+        
 
         Start = tpc()
-        print(message)
+        txt = ["Loading SCAN data ..."]
+        BDENTAL_GpuDrawText(message_list=txt)
+
+        
 
         global DataBlendFile
         global GpShader
         global Wmin
         global Wmax
 
-        BDENTAL_Props = context.scene.BDENTAL_Props
-        UserDcmDir = AbsPath(BDENTAL_Props.UserDcmDir)
+        if isdir(self.datapath) :
 
-        DataType = BDENTAL_Props.DataType
+            if self.bprops.Dicom_Series_mode == "Simple Mode":
+                max_sID, max_count, series_file_names = GetMaxSerie(self.datapath)
 
-        if DataType == "DICOM Series":
-
-            if BDENTAL_Props.Dicom_Series_mode == "Simple Mode":
-                max_sID, max_count, series_file_names = GetMaxSerie(UserDcmDir)
-
-            if BDENTAL_Props.Dicom_Series_mode == "Advanced Mode":
-                Serie = BDENTAL_Props.Dicom_Series
-
-                if not "Series" in Serie:
-                    message = [" Please Organize DICOM data and retry ! "]
-                    BDENTAL_GpuDrawText(message)
-                    sleep(2)
-                    BDENTAL_GpuDrawText()
-                    return {"CANCELLED"}
-
-                DcmOrganizeDict = eval(BDENTAL_Props.DcmOrganize)
-                series_file_names = DcmOrganizeDict[UserDcmDir][Serie]["Files"]
+            elif self.bprops.Dicom_Series_mode == "Advanced Mode":
+                self.serie = self.bprops.Dicom_Series
+                series_file_names = self.datadict[self.datapath][self.serie]["Files"]
 
             # Start Reading Dicom data :
             ######################################################################################
             DcmInfo, message = Load_Dicom_funtion(
                 context, series_file_names, self.q, "FAST")
 
-        if DataType == "3D Image File":
-            UserImageFile = AbsPath(BDENTAL_Props.UserImageFile)
-            if not exists(UserImageFile):
-                message = [" The Selected Image File Path is not valid ! "]
-                BDENTAL_GpuDrawText(message)
-                sleep(2)
-                BDENTAL_GpuDrawText()
-                return {"CANCELLED"}
+        elif isfile(self.datapath):
 
             DcmInfo, message = Load_3DImage_function(
                 context, self.q, "FAST")
@@ -2542,12 +2563,10 @@ class BDENTAL_OT_Volume_Render(bpy.types.Operator):
         else:
 
             Preffix = DcmInfo["Preffix"]
-            print("\n##########################\n")
             self.VolumeRender(context,DcmInfo, GpShader, DataBlendFile, "FAST")
-            print("setting volumes...")
-            scn = bpy.context.scene
+            scn = context.scene
             scn.render.engine = "BLENDER_EEVEE_NEXT"
-            BDENTAL_Props.GroupNodeName = GpShader
+            self.bprops.GroupNodeName = GpShader
 
             GpNode = bpy.data.node_groups.get(f"{Preffix}_{GpShader}")
             Low_Treshold = GpNode.nodes["Low_Treshold"].outputs[0]
@@ -2559,25 +2578,24 @@ class BDENTAL_OT_Volume_Render(bpy.types.Operator):
 
             Soft, Bone, Teeth = -400, 700, 1400
 
-            BDENTAL_Props.SoftTreshold = Soft
-            BDENTAL_Props.BoneTreshold = Bone
-            BDENTAL_Props.TeethTreshold = Teeth
-            BDENTAL_Props.SoftBool = False
-            BDENTAL_Props.BoneBool = False
-            BDENTAL_Props.TeethBool = True
+            self.bprops.SoftTreshold = Soft
+            self.bprops.BoneTreshold = Bone
+            self.bprops.TeethTreshold = Teeth
+            self.bprops.SoftBool = False
+            self.bprops.BoneBool = False
+            self.bprops.TeethBool = True
 
-            BDENTAL_Props.CT_Rendered = True
+            self.bprops.CT_Rendered = True
             
-            sleep(3) # for shaders to load
-            txt = ["Scan loaded. "]
-            BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.green)
-            sleep(2)
+            # sleep(3) # for shaders to load
+            # txt = ["Scan loaded. "]
+            # BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.green)
+            # sleep(2)
             
             
             if self.slices :
-                message = ["Scan Slices processing ..."]
+                message = ["mpr Slices processing ..."]
                 BDENTAL_GpuDrawText(message)
-
                 bpy.ops.wm.bdental_addslices(open_slices_view=False)
 
             
@@ -2590,7 +2608,12 @@ class BDENTAL_OT_Volume_Render(bpy.types.Operator):
             return {"FINISHED"}
 
     def invoke(self, context, event):
-
+        if not self.is_ready(context) :
+            txt = [" Please Organize DICOM data and retry ! "]
+            BDENTAL_GpuDrawText(message_list=txt,rect_color=BdentalColors.red)
+            sleep(2)
+            BDENTAL_GpuDrawText()
+            return {"CANCELLED"}
         wm = context.window_manager
         return wm.invoke_props_dialog(self)
 
@@ -5023,9 +5046,10 @@ class BDENTAL_OT_SplintGuideGeom(bpy.types.Operator):
 
     def add_cutter_point(self):
         area3D, space3D , region_3d = CtxOverride(bpy.context)
-        with bpy.context.temp_override(area= area3D, space_data=space3D, region = region_3d):
+        bpy.context.view_layer.objects.active = self.cutter
+        bpy.ops.object.mode_set( mode="EDIT")
 
-            bpy.ops.object.mode_set( mode="EDIT")
+        with bpy.context.temp_override(active_object=self.cutter,area= area3D, space_data=space3D, region = region_3d):
             bpy.ops.curve.extrude( mode="INIT")
             bpy.ops.view3d.snap_selected_to_cursor( use_offset=False)
             bpy.ops.curve.select_all( action="SELECT")
@@ -5033,29 +5057,32 @@ class BDENTAL_OT_SplintGuideGeom(bpy.types.Operator):
             bpy.ops.curve.select_all( action="DESELECT")
             points = self.cutter.data.splines[0].bezier_points[:]
             points[-1].select_control_point = True
-            bpy.ops.object.mode_set( mode="OBJECT")
+
+        bpy.ops.object.mode_set( mode="OBJECT")
 
     def del_cutter_point(self):
         try:
             area3D, space3D , region_3d = CtxOverride(bpy.context)
-            with bpy.context.temp_override(area= area3D, space_data=space3D, region = region_3d):
+            bpy.context.view_layer.objects.active = self.cutter
 
-                bpy.ops.object.mode_set( mode="EDIT")
+            # with bpy.context.temp_override(active_object=self.cutter,area= area3D, space_data=space3D, region = region_3d):
+
+            bpy.ops.object.mode_set( mode="EDIT")
+            bpy.ops.curve.select_all( action="DESELECT")
+            points = self.cutter.data.splines[0].bezier_points[:]
+            points[-1].select_control_point = True
+            points = self.cutter.data.splines[0].bezier_points[:]
+            if len(points) > 1:
+
+                bpy.ops.curve.delete( type="VERT")
+                points = self.cutter.data.splines[0].bezier_points[:]
+                bpy.ops.curve.select_all( action="SELECT")
+                bpy.ops.curve.handle_type_set( type="AUTOMATIC")
                 bpy.ops.curve.select_all( action="DESELECT")
                 points = self.cutter.data.splines[0].bezier_points[:]
                 points[-1].select_control_point = True
-                points = self.cutter.data.splines[0].bezier_points[:]
-                if len(points) > 1:
 
-                    bpy.ops.curve.delete( type="VERT")
-                    points = self.cutter.data.splines[0].bezier_points[:]
-                    bpy.ops.curve.select_all( action="SELECT")
-                    bpy.ops.curve.handle_type_set( type="AUTOMATIC")
-                    bpy.ops.curve.select_all( action="DESELECT")
-                    points = self.cutter.data.splines[0].bezier_points[:]
-                    points[-1].select_control_point = True
-
-                bpy.ops.object.mode_set( mode="OBJECT")
+            bpy.ops.object.mode_set( mode="OBJECT")
 
         except Exception:
             pass
@@ -5141,62 +5168,64 @@ class BDENTAL_OT_SplintGuideGeom(bpy.types.Operator):
         self.base_mesh_duplicate.data.vertices[id].select = True
 
         bpy.ops.object.mode_set( mode="EDIT")
+        
+
+        bpy.ops.mesh.select_linked()
+        # bpy.ops.mesh.select_all(action='INVERT')
+        bpy.ops.mesh.delete( type='VERT')
+        bpy.ops.mesh.reveal()
+        bpy.ops.object.mode_set( mode="OBJECT")
+
+        bpy.data.objects.remove(self.cutter)
+        col = bpy.data.collections['Bdental Cutters']
+        bpy.data.collections.remove(col)
+
+        bpy.context.scene.tool_settings.use_snap = False
         with bpy.context.temp_override(area= area3D, space_data=space3D, region = region_3d):
-
-            bpy.ops.mesh.select_linked()
-            # bpy.ops.mesh.select_all(action='INVERT')
-            bpy.ops.mesh.delete( type='VERT')
-            bpy.ops.mesh.reveal()
-            bpy.ops.object.mode_set( mode="OBJECT")
-
-            bpy.data.objects.remove(self.cutter)
-            col = bpy.data.collections['Bdental Cutters']
-            bpy.data.collections.remove(col)
-
-            bpy.context.scene.tool_settings.use_snap = False
             bpy.ops.wm.tool_set_by_id( name="builtin.select")
-            space3D.overlay.show_outline_selected = True
+        space3D.overlay.show_outline_selected = True
 
     def splint(self, context):
         global bdental_volume_node_name
         area3D, space3D , region_3d = CtxOverride(context)
+
+        
+        self.splint = context.object
+        smooth_corrective = self.splint.modifiers.new(
+            name="Smooth Corrective", type="CORRECTIVE_SMOOTH")
+        smooth_corrective.iterations = 5
+        smooth_corrective.use_only_smooth = True
+        smooth_corrective.use_pin_boundary = True
+
+        gn = append_group_nodes(bdental_volume_node_name)
+        mesh_to_volume(self.splint, gn,
+                    offset_out=self.guide_thikness, offset_in=-1)
+
+        remesh = self.splint.modifiers.new(name="Remesh", type="REMESH")
+        remesh.voxel_size = 0.2
+
+        smooth_corrective = self.splint.modifiers.new(
+            name="Smooth Corrective", type="CORRECTIVE_SMOOTH")
+        smooth_corrective.iterations = 10
+        smooth_corrective.use_only_smooth = True
+        smooth_corrective.use_pin_boundary = True
+
+        bpy.ops.object.select_all(action='DESELECT')
+        self.splint.select_set(True)
+        bpy.context.view_layer.objects.active = self.splint
+        bpy.ops.object.convert(target='MESH', keep_original=False)
+
+        for slot in self.splint.material_slots:
+            bpy.ops.object.material_slot_remove()
+
+        mat = bpy.data.materials.get(
+            "Splint_mat") or bpy.data.materials.new("Splint_mat")
+        mat.diffuse_color = [0.1, 0.4, 1.0, 1.0]
+        mat.roughness = 0.3
+        self.splint.active_material = mat
+
         with bpy.context.temp_override(area= area3D, space_data=space3D, region = region_3d):
 
-        
-            self.splint = context.object
-            smooth_corrective = self.splint.modifiers.new(
-                name="Smooth Corrective", type="CORRECTIVE_SMOOTH")
-            smooth_corrective.iterations = 5
-            smooth_corrective.use_only_smooth = True
-            smooth_corrective.use_pin_boundary = True
-
-            gn = append_group_nodes(bdental_volume_node_name)
-            mesh_to_volume(self.splint, gn,
-                        offset_out=self.guide_thikness, offset_in=-1)
-
-            remesh = self.splint.modifiers.new(name="Remesh", type="REMESH")
-            remesh.voxel_size = 0.2
-
-            smooth_corrective = self.splint.modifiers.new(
-                name="Smooth Corrective", type="CORRECTIVE_SMOOTH")
-            smooth_corrective.iterations = 10
-            smooth_corrective.use_only_smooth = True
-            smooth_corrective.use_pin_boundary = True
-
-            bpy.ops.object.select_all(action='DESELECT')
-            self.splint.select_set(True)
-            bpy.context.view_layer.objects.active = self.splint
-            bpy.ops.object.convert(target='MESH', keep_original=False)
-
-            for slot in self.splint.material_slots:
-                bpy.ops.object.material_slot_remove()
-
-            mat = bpy.data.materials.get(
-                "Splint_mat") or bpy.data.materials.new("Splint_mat")
-            mat.diffuse_color = [0.1, 0.4, 1.0, 1.0]
-            mat.roughness = 0.3
-            self.splint.active_material = mat
-        
             bpy.ops.view3d.view_all( center=True)
             bpy.ops.view3d.view_axis( type='FRONT')
 
@@ -5458,7 +5487,10 @@ class BDENTAL_OT_GuideFinalise(bpy.types.Operator):
         #         guide_components.append(obj)
 
         guide, guide_cutter = None, None
-        coll = bpy.data.collections.get("GUIDE Components")
+        colname = "GUIDE Components"
+        coll = bpy.data.collections.get(colname)
+        hide_collection(False, colname)
+        
         guide_components = coll.objects
         add_components, cut_components = [], []
         for obj in guide_components:
@@ -5568,29 +5600,33 @@ class BDENTAL_OT_GuideFinalise(bpy.types.Operator):
             # print(obj)
             context.view_layer.objects.active = obj
             obj.select_set(True)
+
+            if obj.constraints :
+                for c in obj.constraints :
+                    bpy.ops.constraint.apply(constraint=c.name)
+            elif obj.modifiers or obj.type == "CURVE" :
+                bpy.ops.object.convert(target='MESH', keep_original=False)
+
             if len(obj.data.vertices) > 50000:
                 decimate = obj.modifiers.new(name="Decimate", type="DECIMATE")
                 ratio = 50000 / len(obj.data.vertices)
                 decimate.ratio = ratio
             bpy.ops.object.convert(target='MESH', keep_original=False)
 
-            # if obj.constraints :
-            #     for c in obj.constraints :
-            #         bpy.ops.constraint.apply(constraint=c.name)
-            # elif obj.modifiers or obj.type == "CURVE" :
-            #     bpy.ops.object.convert(target='MESH', keep_original=False)
+            
+            # check non manifold :
+            bpy.ops.object.mode_set(mode="EDIT")
+            bpy.ops.mesh.select_all(action='DESELECT')
+            bpy.context.tool_settings.mesh_select_mode = (True, False, False)
+            bpy.ops.mesh.select_non_manifold()
+            bpy.ops.object.mode_set(mode="OBJECT")
 
-            # # check non manifold :
-            # bpy.ops.object.mode_set(mode="EDIT")
-            # bpy.ops.mesh.select_all(action='DESELECT')
-            # bpy.context.tool_settings.mesh_select_mode = (True, False, False)
-            # bpy.ops.mesh.select_non_manifold()
-            # bpy.ops.object.mode_set(mode="OBJECT")
-
-            # if bpy.context.object.data.total_edge_sel > 0 :
-            #     remesh = guide_cutter.modifiers.new(name="Remesh", type="REMESH")
-            #     remesh.voxel_size = 0.1
-            #     bpy.ops.object.convert(target='MESH', keep_original=False)
+            if bpy.context.object.data.total_edge_sel :
+                remesh = guide_cutter.modifiers.new(name="Remesh", type="REMESH")
+                remesh.mode = "SHARP"
+                remesh.octree_depth = 8
+                bpy.ops.object.convert(target='MESH', keep_original=False)
+        
             message = [f"Making Cuts {i+1}/{len(cut_components)}..."]
             BDENTAL_GpuDrawText(message)
 
@@ -5659,7 +5695,10 @@ class BDENTAL_OT_GuideFinalise(bpy.types.Operator):
         for col in guide.users_collection:
             col.objects.unlink(guide)
 
-        bpy.context.scene.collection.objects.link(guide)
+        context.scene.collection.objects.link(guide)
+        bpy.ops.object.select_all(action='DESELECT')
+        context.view_layer.objects.active = guide
+        guide.select_set(True)
         os.system("cls")
         end = tpc()
 
@@ -5706,29 +5745,31 @@ class BDENTAL_OT_GuideFinaliseGeonodes(bpy.types.Operator):
         message = ["Making guide components duplicates..."]
         BDENTAL_GpuDrawText(message)
 
-        add_coll, cut_coll = finalize_geonodes_make_dup_colls(context,guide_components,add_components,cut_components)
-        guide = AppendObject(GUIDE_NAME,context.scene.collection.name)
+        add_coll, cut_coll = finalize_geonodes_make_dup_colls(context,guide_components,add_components)
         suffix = 1
         for obj in bpy.context.scene.objects :
             if GUIDE_NAME in obj.name :
                 suffix+=1
+        guide = AppendObject(GUIDE_NAME,"Guide Collection")
+        bpy.ops.object.select_all(action='DESELECT')
+        context.view_layer.objects.active = guide
+        guide.select_set(True)
         guide.name += f"_{suffix}"
         gn = bpy.data.node_groups.get(BOOL_NODE)
         gn.nodes["collection_add"].inputs[0].default_value = add_coll
         gn.nodes["collection_cut"].inputs[0].default_value = cut_coll
-        context.view_layer.objects.active = guide
         bpy.ops.object.convert(target="MESH")
         mat = bpy.data.materials.get(
             "Splint_mat") or bpy.data.materials.new(name="Splint_mat")
-        mat.diffuse_color = [0.0, 0.23, 0.28, 1.0]
+        mat.diffuse_color = [0.0, 0.23, 0.2, 1.0]
         mat.use_nodes = True
         nodes = mat.node_tree.nodes
         pbsdf_node = [n for n in nodes if n.type =='BSDF_PRINCIPLED'][0]
-        pbsdf_node.inputs[0].default_value = [0.0, 0.23, 0.28, 1.0]
+        pbsdf_node.inputs[0].default_value = [0.0, 0.23, 0.2, 1.0]
         for mat_slot in guide.material_slots:
             bpy.ops.object.material_slot_remove()
         guide.active_material = mat
-        coll.hide_viewport = True
+        exclude_coll(colname=colname)
 
         for coll in [add_coll,cut_coll] :
             for obj in coll.objects :
@@ -5742,8 +5783,8 @@ class BDENTAL_OT_GuideFinaliseGeonodes(bpy.types.Operator):
         BDENTAL_GpuDrawText(message)
         sleep(3)
         BDENTAL_GpuDrawText()
-        os.system("cls")
-        print(message)
+        # os.system("cls")
+        bdental_log(message)
         return {"FINISHED"}
 
 
@@ -8214,6 +8255,7 @@ class BDENTAL_OT_to_center(bpy.types.Operator):
                     bpy.ops.view3d.snap_cursor_to_center()
                     bpy.ops.view3d.view_all( center=True)
                     bpy.ops.wm.tool_set_by_id( name="builtin.select")
+                    bpy.ops.object.transform_apply()
                 BDENTAL_GpuDrawText()
 
             return {"FINISHED"}
@@ -10365,6 +10407,7 @@ class BDENTAL_OT_AddTube(bpy.types.Operator):
         # temp_obj.data.
 
         # obj.data = temp_obj.data
+        context.view_layer.objects.active = self.tube
         bpy.ops.object.mode_set(mode="EDIT")
         bpy.ops.curve.select_all(action="DESELECT")
         curve.splines[0].bezier_points[-1].select_control_point = True
@@ -10632,7 +10675,7 @@ class BDENTAL_OT_CurveCutterAdd2(bpy.types.Operator):
             self.cutters_collection = bpy.data.collections.get("Bdental Cutters")
 
     def add_cutter_point(self):
-
+        bpy.context.view_layer.objects.active = self.cutter
         bpy.ops.object.mode_set( mode="EDIT")
         bpy.ops.curve.extrude( mode="INIT")
         bpy.ops.view3d.snap_selected_to_cursor( use_offset=False)
@@ -10645,6 +10688,7 @@ class BDENTAL_OT_CurveCutterAdd2(bpy.types.Operator):
 
     def del_cutter_point(self):
         try:
+            bpy.context.view_layer.objects.active = self.cutter
             bpy.ops.object.mode_set( mode="EDIT")
             bpy.ops.curve.select_all( action="DESELECT")
             points = self.cutter.data.splines[0].bezier_points[:]
@@ -10670,10 +10714,10 @@ class BDENTAL_OT_CurveCutterAdd2(bpy.types.Operator):
         bezier_points = self.cutter.data.splines[0].bezier_points[:]
         Bpt = bezier_points[i]
         loc = self.cutter.matrix_world @ Bpt.co
-        AddMarkupPoint(
+        Hook=AddMarkupPoint(
             name=Name, color=(0, 1, 0, 1), loc=loc, Diameter=0.5, CollName=CollName
         )
-        Hook = context.object
+        bpy.context.view_layer.objects.active = Hook
         bpy.ops.object.mode_set(mode="OBJECT")
         bpy.ops.object.select_all(action="DESELECT")
         Hook.select_set(True)
@@ -10886,7 +10930,7 @@ class BDENTAL_OT_CurveCutter2_Cut_New(bpy.types.Operator):
         bpy.ops.object.mode_set(mode="OBJECT")
         bpy.ops.mesh.separate(type="LOOSE")
 
-        for obj in bpy.context.visible_objects:
+        for obj in bpy.context.selected_objects:
             if not obj.data or not obj.data.polygons or len(obj.data.polygons) < 10:
                 bpy.data.objects.remove(obj)
             else :
@@ -13323,11 +13367,19 @@ class BDENTAL_OT_SlicesPointerSelect(bpy.types.Operator):
         
         checklist = [
             obj for obj in bpy.data.objects if obj.get("bdental_type")=="slices_pointer"]
-        obj = checklist[0]
-        context.view_layer.objects.active = obj
-        bpy.ops.object.mode_set(mode='OBJECT')
-        bpy.ops.object.select_all(action='DESELECT')
-        obj.select_set(True)
+        _pointer = checklist[0]
+        if context.mode != "OBJECT" :
+            bpy.ops.object.mode_set(mode="OBJECT")
+        for obj in context.scene.objects :
+            if obj.select_get():
+                obj.select_set(False)
+        context.view_layer.objects.active = _pointer
+        _pointer.select_set(True)
+
+        # with context.temp_override(active_object=obj):
+            # bpy.ops.object.select_all(action='DESELECT')
+            # context.view_layer.objects.active = obj
+            # obj.select_set(True)
         return{"FINISHED"}
 
 

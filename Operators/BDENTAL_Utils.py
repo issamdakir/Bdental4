@@ -68,18 +68,23 @@ cm_info = {
 clip_offset = 1
 github_cmd = "curl -L https://github.com/issamdakir/Bdental-3-win/zipball/main"
 ######################################################################
+def get_layerColl(colname):
+    lc = bpy.context.view_layer.layer_collection.children.get(colname)
+    return lc
+def exclude_coll(_exclude=True,colname=""):
+    coll = bpy.data.collections.get(colname)
+    lc = get_layerColl(colname)
+    if coll and lc:
+        lc.exclude = _exclude
+    return
 def hide_collection(_hide=True, colname="") :
     coll = bpy.data.collections.get(colname)
-
-    if coll :
+    lc = get_layerColl(colname)
+    if coll and lc:
         coll.hide_select = _hide
         coll.hide_viewport = _hide
-        layerColl = None
-        for vl in bpy.context.scene.view_layers :
-            layerColl = vl.layer_collection.children.get(colname)
-            if layerColl :
-                layerColl.exclude = _hide
-                layerColl.hide_viewport = _hide
+        lc.exclude = _hide
+        lc.hide_viewport = _hide
 
 def hide_object(_hide=True, obj=None) :
 
@@ -88,10 +93,8 @@ def hide_object(_hide=True, obj=None) :
         obj.hide_viewport = _hide
         obj.hide_set(_hide)
 
-def finalize_geonodes_make_dup_colls(context,guide_components,add_components,cut_components):
-    obj = add_components[0]
-
-    
+def finalize_geonodes_make_dup_colls(context,guide_components,add_components):
+    # obj = add_components[0]
 
     for obj in guide_components:
         hide_object(False, obj)
@@ -102,57 +105,33 @@ def finalize_geonodes_make_dup_colls(context,guide_components,add_components,cut
         
         bpy.ops.object.duplicate_move()
         dup_obj = context.object
-        # bpy.ops.object.select_all(action='DESELECT')
-        # dup_obj.select_set(True)
-        # if dup_obj.constraints:
-        #     for c in dup_obj.constraints:
-        #         bpy.ops.constraint.apply(constraint=c.name)
-        # if dup_obj.modifiers or dup_obj.type == "CURVE":
-        #     bpy.ops.object.convert(target='MESH', keep_original=False)
-        # # check non manifold :
-        # bpy.ops.object.mode_set(mode="EDIT")
-        # bpy.ops.mesh.select_all(action='DESELECT')
-        # context.tool_settings.mesh_select_mode = (True, False, False)
-        # bpy.ops.mesh.select_non_manifold()
-        # bpy.ops.object.mode_set(mode="OBJECT")
-        # if dup_obj.data.total_vert_sel :
-        #     remesh = dup_obj.modifiers.new(name="Remesh", type="REMESH")
-        #     remesh.mode = "SHARP"
-        #     remesh.octree_depth = 8
-        #     bpy.ops.object.convert(target='MESH', keep_original=False)
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+        if dup_obj.constraints:
+            for c in dup_obj.constraints:
+                bpy.ops.constraint.apply(constraint=c.name)
+        if dup_obj.type == "CURVE":
+            bpy.ops.object.convert(target='MESH', keep_original=False)
+            remesh = dup_obj.modifiers.new(name="Remesh", type="REMESH")
+            
+        if dup_obj.modifiers or dup_obj.type == "CURVE":
+            bpy.ops.object.convert(target='MESH', keep_original=False)
+        
+        # check non manifold :
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action='DESELECT')
+        bpy.context.tool_settings.mesh_select_mode = (True, False, False)
+        bpy.ops.mesh.select_non_manifold()
+        bpy.ops.object.mode_set(mode="OBJECT")
+
+        if dup_obj.data.total_vert_sel :
+            remesh = dup_obj.modifiers.new(name="Remesh", type="REMESH")
+            remesh.mode = "SHARP"
+            remesh.octree_depth = 8
+            bpy.ops.object.convert(target='MESH', keep_original=False)
         if obj in add_components :
             add_coll = MoveToCollection(dup_obj, "AddColl")
         else :
             cut_coll = MoveToCollection(dup_obj, "CutColl")
-
-
-    # for obj in cut_components:
-    #     bpy.ops.object.select_all(action='DESELECT')
-    #     obj.select_set(True)
-    #     context.view_layer.objects.active = obj
-    #     bpy.ops.object.duplicate_move()
-    #     dup_obj = context.object
-    #     bpy.ops.object.select_all(action='DESELECT')
-    #     dup_obj.select_set(True)
-        
-        # if dup_obj.constraints:
-        #     for c in obj.constraints:
-        #         bpy.ops.constraint.apply(constraint=c.name)
-        # if dup_obj.modifiers or obj.type == "CURVE":
-        #     bpy.ops.object.convert(target='MESH', keep_original=False)
-
-        # # check non manifold :
-        # bpy.ops.object.mode_set(mode="EDIT")
-        # bpy.ops.mesh.select_all(action='DESELECT')
-        # context.tool_settings.mesh_select_mode = (True, False, False)
-        # bpy.ops.mesh.select_non_manifold()
-        # bpy.ops.object.mode_set(mode="OBJECT")
-        # if dup_obj.data.total_vert_sel :
-        #     remesh = dup_obj.modifiers.new(name="Remesh", type="REMESH")
-        #     remesh.mode = "SHARP"
-        #     remesh.octree_depth = 8
-        #     bpy.ops.object.convert(target='MESH', keep_original=False)
-        # cut_coll = MoveToCollection(dup_obj, "CutColl")
     
     return add_coll, cut_coll
 def add_bdental_libray():
@@ -2986,11 +2965,13 @@ def AddSlices(Preffix, DcmInfo, SlicesDir):
         p.select_set(True)
         bpy.context.view_layer.objects.active = p
 
+        for slot in p.material_slots:
+            bpy.ops.object.material_slot_remove()
+
         mat = bpy.data.materials.get(
             f"{p.name}_mat") or bpy.data.materials.new(f"{p.name}_mat")
 
-        for slot in p.material_slots:
-            bpy.ops.object.material_slot_remove()
+        
 
         # bpy.ops.object.material_slot_add()
         p.active_material = mat
@@ -3009,6 +2990,15 @@ def AddSlices(Preffix, DcmInfo, SlicesDir):
         ImageName = f"{p.name}.png"
         ImagePath = join(SlicesDir, ImageName)
         BlenderImage = bpy.data.images.get(ImageName)
+
+        BlenderImage = bpy.data.images.get(ImageName)
+        if not BlenderImage:
+            bpy.data.images.load(ImagePath)
+            BlenderImage = bpy.data.images.get(ImageName)
+
+        else:
+            BlenderImage.filepath = ImagePath
+            BlenderImage.reload()
 
         
         TextureCoord = AddNode(
