@@ -39,11 +39,7 @@ from vtk import vtkCommand
 from .BDENTAL_Utils import *
 from ..utils import (
     ADDON_DIR,
-    ADDON_VER_PATH,
     BDENTAL_GpuDrawText,
-    TELEGRAM_LINK,
-    VERSION_URL,
-    BLF_INFO,
     BdentalColors,
     BDENTAL_LIB_NAME,
     BOOL_NODE,
@@ -1651,6 +1647,8 @@ def Load_Dicom_funtion(context, series_file_names, q, voxel_mode):
     Nrrd255Path = join(UserProjectDir, f"{Preffix}_Image3D255.nrrd")
     print(Nrrd255Path)
     DcmInfo["Nrrd255Path"] = RelPath(Nrrd255Path)
+    mhdPath = join(UserProjectDir, f"{Preffix}_Image3D.mhd")
+    DcmInfo['mhdPath'] = RelPath(mhdPath)
 
     #######################################################################################
     # set IntensityWindowing  :
@@ -1702,6 +1700,7 @@ def Load_Dicom_funtion(context, series_file_names, q, voxel_mode):
 
     # Convert Dicom to nrrd file :
     sitk.WriteImage(Image3D_255, Nrrd255Path)
+    sitk.WriteImage(Image3D, mhdPath)
 
     # make axial slices :
     Array = sitk.GetArrayFromImage(Image3D_255)
@@ -1766,6 +1765,7 @@ def Load_Dicom_funtion(context, series_file_names, q, voxel_mode):
             "RenderSp": new_spacing,
             "SlicesDir": "",
             "Nrrd255Path": RelPath(Nrrd255Path),
+            # "vtiPath": RelPath(vtiPath),
             "Preffix": Preffix,
             "PixelType": Image3D.GetPixelIDTypeAsString(),
             "Wmin": Wmin,
@@ -2544,11 +2544,12 @@ class BDENTAL_OT_Volume_Render(bpy.types.Operator):
             elif self.bprops.Dicom_Series_mode == "Advanced Mode":
                 self.serie = self.bprops.Dicom_Series
                 series_file_names = self.datadict[self.datapath][self.serie]["Files"]
+                # print(series_file_names)
 
             # Start Reading Dicom data :
             ######################################################################################
             DcmInfo, message = Load_Dicom_funtion(
-                context, series_file_names, self.q, "FAST")
+                context, list(series_file_names), self.q, "FAST")
 
         elif isfile(self.datapath):
 
@@ -2784,10 +2785,10 @@ class BDENTAL_OT_MultiTreshSegment(bpy.types.Operator):
         MoveToCollection(obj=obj, CollName="SEGMENTS")
         bpy.ops.object.shade_smooth()
 
-        bpy.ops.object.modifier_add(type="CORRECTIVE_SMOOTH")
-        bpy.context.object.modifiers["CorrectiveSmooth"].iterations = 2
-        bpy.context.object.modifiers["CorrectiveSmooth"].use_only_smooth = True
-        bpy.ops.object.modifier_apply(modifier="CorrectiveSmooth")
+        # bpy.ops.object.modifier_add(type="CORRECTIVE_SMOOTH")
+        # bpy.context.object.modifiers["CorrectiveSmooth"].iterations = 2
+        # bpy.context.object.modifiers["CorrectiveSmooth"].use_only_smooth = True
+        # bpy.ops.object.modifier_apply(modifier="CorrectiveSmooth")
 
         print(f"{Segment} Mesh Import Finished")
 
@@ -2842,7 +2843,7 @@ class BDENTAL_OT_MultiTreshSegment(bpy.types.Operator):
         ############### step 3 : mesh Smoothing 1... #########################
         message = [f"Smoothing {Segment} segment ..."]
         message_queue.put(message)
-        SmthIter = 3
+        SmthIter = 1
         SmoothedMesh1 = vtkSmoothMesh(
             q=None,
             mesh=Mesh,
@@ -2859,7 +2860,7 @@ class BDENTAL_OT_MultiTreshSegment(bpy.types.Operator):
 
         # ############### step 4 : mesh Smoothing... #########################
 
-        SmthIter = 20
+        SmthIter = 10
         SmoothedMesh2 = vtkWindowedSincPolyDataFilter(
             q=None,
             mesh=Mesh,
@@ -2882,6 +2883,7 @@ class BDENTAL_OT_MultiTreshSegment(bpy.types.Operator):
         if polysCount > polysLimit:
 
             Reduction = round(1 - (polysLimit / polysCount), 2)
+            # Reduction = 0.5
             ReductedMesh = vtkMeshReduction(
                 q=None,
                 mesh=Mesh,
@@ -2978,7 +2980,7 @@ class BDENTAL_OT_MultiTreshSegment(bpy.types.Operator):
             return {"CANCELLED"}
 
         message = ["Dicom segmentation processing ...",
-                   f"Active Segments : {ActiveSegmentsList}"]
+                   f"Active Segment(s) : {', '.join(ActiveSegmentsList)}"]
         BDENTAL_GpuDrawText(message)
         sleep(1)
 
@@ -3002,7 +3004,7 @@ class BDENTAL_OT_MultiTreshSegment(bpy.types.Operator):
         print(f"step 1 : Read DICOM ({self.step1-self.counter_start})")
 
         Image3D = sitk.ReadImage(self.Nrrd255Path)
-        target_spacing = 0.2
+        target_spacing = 0.3
         Sp = Image3D.GetSpacing()
         if Sp[0] < target_spacing:
             ResizedImage, _, _ = ResizeImage(
@@ -3048,7 +3050,7 @@ class BDENTAL_OT_MultiTreshSegment(bpy.types.Operator):
                     Segment, SegmentStlPath, SegmentColor
                 )
                 Imported_Meshes.append(obj)
-                os.remove(SegmentStlPath)
+                # os.remove(SegmentStlPath)
                 count += 1
             else:
                 sleep(0.1)
@@ -5775,14 +5777,14 @@ class BDENTAL_OT_GuideFinaliseGeonodes(bpy.types.Operator):
             for obj in coll.objects :
                 bpy.data.objects.remove(obj)
             bpy.data.collections.remove(coll)
-        
+        bpy.data.node_groups.remove(gn)
         
         end = tpc()
         sleep(1)
         message = [f"Finished in {round(end-start)} seconds."]
-        BDENTAL_GpuDrawText(message)
-        sleep(3)
-        BDENTAL_GpuDrawText()
+        # BDENTAL_GpuDrawText(message)
+        # sleep(3)
+        # BDENTAL_GpuDrawText()
         # os.system("cls")
         bdental_log(message)
         return {"FINISHED"}

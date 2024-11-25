@@ -20,7 +20,6 @@ import blf # type: ignore
 
 
 ###########################################
-
 BLF_INFO = {
     "fontid" : 0,
     "size" : 18,
