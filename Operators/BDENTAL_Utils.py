@@ -28,9 +28,8 @@ import vtk
 from bpy.app.handlers import persistent
 from bpy_extras import view3d_utils
 from gpu_extras.batch import batch_for_shader
-from mathutils import Euler, Matrix, Vector
-from mathutils import geometry as Geo
-from mathutils import kdtree, bvhtree
+from mathutils import Euler, Matrix, Vector, kdtree, bvhtree, geometry as Geo
+
 from numpy.linalg import svd
 from vtk import vtkCommand
 from vtk.util import numpy_support
@@ -68,6 +67,13 @@ cm_info = {
 clip_offset = 1
 github_cmd = "curl -L https://github.com/issamdakir/Bdental-3-win/zipball/main"
 ######################################################################
+def load_matrix_from_file(filename):
+    try:
+        matrix = np.loadtxt(filename)
+        return Matrix(matrix)
+    except IOError:
+        print(f"Could not read file: {filename}")
+        return None
 def get_layerColl(colname):
     lc = bpy.context.view_layer.layer_collection.children.get(colname)
     return lc

@@ -52,6 +52,7 @@ BDENTAL_MODULES = join(ADDON_DIR, "bdental_modules")
 DRAW_HANDLERS=[]
 BOOL_NODE ="boolean_geonode"
 GUIDE_NAME = "Bdental_guide"
+MESH_REG_AUTO = join(ADDON_DIR, "operators","MeshRegAuto.exe")
 
 def bdental_log(txt_list,header=None,footer=None):
     _header, _footer = header, footer

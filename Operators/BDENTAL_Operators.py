@@ -1,5 +1,6 @@
 import os
 import shutil
+import shlex
 import math
 import threading
 import pickle
@@ -9,6 +10,7 @@ from time import sleep, perf_counter as tpc
 from queue import Queue
 from os.path import join, dirname, abspath, exists, split, basename, isdir, isfile
 from glob import glob
+import subprocess
 
 import gpu # type: ignore
 from gpu_extras.batch import batch_for_shader # type: ignore
@@ -45,6 +47,7 @@ from ..utils import (
     BOOL_NODE,
     GUIDE_NAME,
     bdental_log,
+    MESH_REG_AUTO
 )
 
 
@@ -7076,7 +7079,7 @@ class BDENTAL_OT_BlockModel(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class BDENTAL_OT_UnderctsPreview(bpy.types.Operator):
+class BDENTAL_OT_UndercutsPreview(bpy.types.Operator):
     " Survey the model from view"
 
     bl_idname = "wm.bdental_undercuts_preview"
@@ -7859,6 +7862,88 @@ class BDENTAL_OT_AlignPoints(bpy.types.Operator):
 
                 return {"CANCELLED"}
 
+class BDENTAL_OT_AutoAlign(bpy.types.Operator):
+    """auto mesh registration"""
+
+    bl_idname = "wm.bdental_auto_align"
+    bl_label = "ALIGN AUTO"
+    bl_options = {"REGISTER", "UNDO"}
+
+    mode : EnumProperty(
+        items = set_enum_items(["global", "icp", "global+icp"]), description="auto align mode", default="global+icp") # type: ignore
+
+    @classmethod
+    def poll(cls,context) :
+        if context.object and context.object.select_get() and len(context.selected_objects) == 2 :
+            if all([obj.type == "MESH" for obj in context.selected_objects]) : return True
+        return False
+
+    def execute(self, context):
+        binary = shlex.quote(MESH_REG_AUTO)
+        print("binary : ", binary)
+        print("source : ", self.src_path)
+        print("target : ", self.tgt_path)
+        print("transform path : ", self.transform_path) 
+        bpy.ops.object.select_all(action="DESELECT")
+        context.view_layer.objects.active = self.source
+        self.source.select_set(True)
+        bpy.ops.wm.stl_export("EXEC_DEFAULT",filepath=self.src_path, export_selected_objects=True)
+
+        bpy.ops.object.select_all(action="DESELECT")
+        context.view_layer.objects.active = self.target
+        self.target.select_set(True)
+        bpy.ops.wm.stl_export(filepath=self.tgt_path, export_selected_objects=True)
+
+        # while True :
+        #     if exists(self.src_path) and exists(self.tgt_path) :
+        #         break
+        
+        cmd = f'"{MESH_REG_AUTO}" "{self.src_path}" "{self.tgt_path}" --transform_output "{self.transform_path}"'
+        if self.mode == "global" :
+            cmd +=  " --registration_mode global"
+        elif self.mode == "icp" :
+            cmd +=  " --registration_mode icp"
+        subprocess.call(cmd, shell=True)
+        counter =1
+        while counter < 20 :
+            sleep(1)
+            if exists(self.transform_path) :
+                break
+            counter += 1
+        
+        transform = load_matrix_from_file(self.transform_path)
+        if not transform :
+            message = ["cancelled registration problem occured!"]
+            print(message)
+            BDENTAL_GpuDrawText(message)
+            sleep(2)
+            BDENTAL_GpuDrawText()
+            return {"CANCELLED"}
+        self.source.matrix_world = transform @ self.source.matrix_world
+        bpy.ops.object.select_all(action="DESELECT")
+        os.remove(self.src_path)
+        os.remove(self.tgt_path)
+        os.remove(self.transform_path)
+        message = ["Finished!"]
+        BDENTAL_GpuDrawText(message)
+        sleep(1)
+        BDENTAL_GpuDrawText()
+        return {"FINISHED"}
+    def invoke(self, context, event):
+        self.target = context.object
+        self.source = [obj for obj in context.selected_objects if obj != self.target][0]
+        temp_path = tempfile.gettempdir()
+        self.src_path = join(temp_path, "source.stl")
+        self.src_path_safe = shlex.quote(self.src_path)
+        self.tgt_path = join(temp_path, "target.stl")
+        self.tgt_path_safe = shlex.quote(self.tgt_path)
+        self.transform_path = join(temp_path, "transform.txt")
+        self.transform_path_safe = shlex.quote(self.transform_path)
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self)
+        
+
+            
 
 ############################################################################
 class BDENTAL_OT_AlignPointsInfo(bpy.types.Operator):
@@ -13758,6 +13843,7 @@ class BDENTAL_OT_PathCutter(bpy.types.Operator):
 # Registration :
 #################################################################################################
 classes = [
+    BDENTAL_OT_AutoAlign,
     BDENTAL_OT_GuideFinaliseGeonodes,
     BDENTAL_OT_AddFixingPin,
     BDENTAL_OT_AddCustomSleeveCutter,
@@ -13846,7 +13932,7 @@ classes = [
     # BDENTAL_OT_AddGuideCuttersFromSleeves,
     BDENTAL_OT_GuideFinalise,
     BDENTAL_OT_ExportMesh,
-    BDENTAL_OT_UnderctsPreview,
+    BDENTAL_OT_UndercutsPreview,
     BDENTAL_OT_BlockoutNew,
     BDENTAL_OT_ImportMesh,
 

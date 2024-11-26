@@ -519,9 +519,12 @@ class BDENTAL_PT_Align(bpy.types.Panel):
         BDENTAL_Props = context.scene.BDENTAL_Props
         layout = self.layout
         Box = layout.box()
+
+        row = Box.row()
+        row.operator("wm.bdental_auto_align")
         
         g = Box.grid_flow(columns=2, align=True)
-        g.operator("wm.bdental_alignpoints", text="ALIGN")
+        g.operator("wm.bdental_alignpoints", text="ALIGN Points")
         g.operator("wm.bdental_alignpointsinfo", text="INFO", icon="INFO")
 
         is_ready = context.object and context.object in context.selected_objects and len(context.selected_objects)==2
