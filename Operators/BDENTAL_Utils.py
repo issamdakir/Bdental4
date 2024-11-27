@@ -93,11 +93,18 @@ def hide_collection(_hide=True, colname="") :
         lc.hide_viewport = _hide
 
 def hide_object(_hide=True, obj=None) :
-
     if obj :
         obj.hide_select = _hide
         obj.hide_viewport = _hide
         obj.hide_set(_hide)
+
+def is_manifold(obj):
+    if obj.type == 'MESH':
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        is_manifold = all(edge.is_manifold for edge in bm.edges)
+        bm.free()
+        return is_manifold
 
 def finalize_geonodes_make_dup_colls(context,guide_components,add_components):
     # obj = add_components[0]
@@ -123,13 +130,7 @@ def finalize_geonodes_make_dup_colls(context,guide_components,add_components):
             bpy.ops.object.convert(target='MESH', keep_original=False)
         
         # check non manifold :
-        bpy.ops.object.mode_set(mode="EDIT")
-        bpy.ops.mesh.select_all(action='DESELECT')
-        bpy.context.tool_settings.mesh_select_mode = (True, False, False)
-        bpy.ops.mesh.select_non_manifold()
-        bpy.ops.object.mode_set(mode="OBJECT")
-
-        if dup_obj.data.total_vert_sel :
+        if is_manifold(dup_obj) == False:
             remesh = dup_obj.modifiers.new(name="Remesh", type="REMESH")
             remesh.mode = "SHARP"
             remesh.octree_depth = 8
@@ -2921,6 +2922,8 @@ def AddSlices(Preffix, DcmInfo, SlicesDir):
         Plane["bdental_type"] = "slice_plane"
         Plane.rotation_mode = "XYZ"
         MoveToCollection(obj=Plane, CollName="SLICES")
+        # The ability to select a plane is unnecessary. But it creates additional complications with pointer selection.
+        Plane.hide_select = True
         slice_planes.append(Plane)
 
     BDENTAL_SliceUpdate(bpy.context.scene)
