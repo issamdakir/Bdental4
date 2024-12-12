@@ -218,5 +218,7 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+#Blender autosave files
+*.blend1
 # End of https://www.toptal.com/developers/gitignore/api/python,visualstudiocode,windows
 Bdental_Library/

@@ -2682,6 +2682,7 @@ class BDENTAL_OT_AddSlices(bpy.types.Operator):
         SLICES_POINTER.name = "SLICES_POINTER"
         SLICES_POINTER["bdental_type"] = "slices_pointer"
         MoveToCollection(SLICES_POINTER, "SLICES_POINTER")
+        SLICES_POINTER.lock_scale = [True for _ in SLICES_POINTER.lock_scale]
 
 
         
@@ -5745,7 +5746,6 @@ class BDENTAL_OT_GuideFinaliseGeonodes(bpy.types.Operator):
             sleep(3)
             BDENTAL_GpuDrawText()
             return {"CANCELLED"}
-        cut_components = [obj for obj in guide_components if not obj.name.startswith("_ADD_")]
 
         message = ["Making guide components duplicates..."]
         BDENTAL_GpuDrawText(message)
@@ -5763,7 +5763,11 @@ class BDENTAL_OT_GuideFinaliseGeonodes(bpy.types.Operator):
         gn = bpy.data.node_groups.get(BOOL_NODE)
         gn.nodes["collection_add"].inputs[0].default_value = add_coll
         gn.nodes["collection_cut"].inputs[0].default_value = cut_coll
-        bpy.ops.object.convert(target="MESH")
+        BDENTAL_GpuDrawText(["Applying nodes..."])
+        # bpy.ops.object.convert(target="MESH")
+        obj = bpy.context.object
+        for mod in obj.modifiers:
+            bpy.ops.object.modifier_apply(modifier=mod.name)
         mat = bpy.data.materials.get(
             "Splint_mat") or bpy.data.materials.new(name="Splint_mat")
         mat.diffuse_color = [0.0, 0.23, 0.2, 1.0]
@@ -5780,15 +5784,15 @@ class BDENTAL_OT_GuideFinaliseGeonodes(bpy.types.Operator):
             for obj in coll.objects :
                 bpy.data.objects.remove(obj)
             bpy.data.collections.remove(coll)
-        bpy.data.node_groups.remove(gn)
-        
+       
+        # Remove boolean_geonode to avoid a state conflict, which causes errors during the second execution of the operator.
+        node_tree = bpy.data.node_groups
+        bnode = bpy.data.node_groups['boolean_geonode']
+        node_tree.remove(bnode)
         end = tpc()
-        sleep(1)
-        message = [f"Finished in {round(end-start)} seconds."]
-        # BDENTAL_GpuDrawText(message)
-        # sleep(3)
-        # BDENTAL_GpuDrawText()
-        # os.system("cls")
+        message = [str(f"Geometry nodes boolean finished in {round(end-start)} seconds.")]
+        BDENTAL_GpuDrawText()
+        os.system("cls")
         bdental_log(message)
         return {"FINISHED"}
 
