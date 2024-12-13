@@ -147,14 +147,14 @@ class BDENTAL_PT_DicomPanel(bpy.types.Panel):
             
 
 
-class BDENTAL_PT_ReconPanel(bpy.types.Panel):
+class BDENTAL_PT_SegmentationPanel(bpy.types.Panel):
     """Recon Panel"""
 
-    bl_idname = "BDENTAL_PT_ReconPanel"
+    bl_idname = "BDENTAL_PT_SegmentationPanel"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"  # blender 2.7 and lower = TOOLS
     bl_category = "BDENTAL"
-    bl_label = "RECONSTRUCTION"
+    bl_label = "SEGMENTATION"
     bl_options = {"DEFAULT_CLOSED"}
 
     @classmethod
@@ -631,7 +631,7 @@ classes = [
     BDENTAL_PT_MainPanel,
     BDENTAL_PT_GeneralPanel,
     BDENTAL_PT_DicomPanel,
-    BDENTAL_PT_ReconPanel,
+    BDENTAL_PT_SegmentationPanel,
     BDENTAL_PT_SlicesPanel,
     BDENTAL_PT_ImplantPanel,
     BDENTAL_PT_Align,
