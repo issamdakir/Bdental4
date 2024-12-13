@@ -142,31 +142,54 @@ class BDENTAL_PT_DicomPanel(bpy.types.Panel):
                     g.prop(BDENTAL_Props, "scan_resolution")
                     g.operator("wm.bdental_volume_render")
 
-        if context.object and context.object.get("bdental_type") in ["CT_Voxel"]:
 
-            box = layout.box()
 
-            g = box.grid_flow(columns=1, align=True)
-            g.label(text=f"THTRESHOLD ({Wmin}/{Wmax})")
-            g.prop(BDENTAL_Props, "TresholdMin", text="Min", slider=True)
-            # g.prop(BDENTAL_Props, "TresholdMax", text="Max", slider=True)
-            g.label(text="DICOM TO MESH")
-            g = box.grid_flow(columns=3, align=True)
             
-            g.prop(BDENTAL_Props, "SoftTreshold", text="Soft Tissue")
-            g.prop(BDENTAL_Props, "SoftSegmentColor", text="")
-            g.prop(BDENTAL_Props, "SoftBool", text="")
 
-            g.prop(BDENTAL_Props, "BoneTreshold", text="Bone")
-            g.prop(BDENTAL_Props, "BoneSegmentColor", text="")
-            g.prop(BDENTAL_Props, "BoneBool", text="")
 
-            g.prop(BDENTAL_Props, "TeethTreshold", text="Teeth")
-            g.prop(BDENTAL_Props, "TeethSegmentColor", text="")
-            g.prop(BDENTAL_Props, "TeethBool", text="")
+class BDENTAL_PT_ReconPanel(bpy.types.Panel):
+    """Recon Panel"""
 
-            g = box.grid_flow(columns=1, align=True)
-            g.operator("wm.bdental_multitresh_segment")
+    bl_idname = "BDENTAL_PT_ReconPanel"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"  # blender 2.7 and lower = TOOLS
+    bl_category = "BDENTAL"
+    bl_label = "RECONSTRUCTION"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    @classmethod
+    def poll(cls, context):
+        if context.object and context.object.get("bdental_type") in ["CT_Voxel"]: 
+            return True
+        else:
+            return False
+
+    def draw(self, context):
+        BDENTAL_Props = context.scene.BDENTAL_Props
+        layout = self.layout
+        box = layout.box()
+
+        g = box.grid_flow(columns=1, align=True)
+        g.label(text=f"THTRESHOLD ({Wmin}/{Wmax})")
+        g.prop(BDENTAL_Props, "TresholdMin", text="Min", slider=True)
+        # g.prop(BDENTAL_Props, "TresholdMax", text="Max", slider=True)
+        g.label(text="DICOM TO MESH")
+        g = box.grid_flow(columns=3, align=True)
+        
+        g.prop(BDENTAL_Props, "SoftTreshold", text="Soft Tissue")
+        g.prop(BDENTAL_Props, "SoftSegmentColor", text="")
+        g.prop(BDENTAL_Props, "SoftBool", text="")
+
+        g.prop(BDENTAL_Props, "BoneTreshold", text="Bone")
+        g.prop(BDENTAL_Props, "BoneSegmentColor", text="")
+        g.prop(BDENTAL_Props, "BoneBool", text="")
+
+        g.prop(BDENTAL_Props, "TeethTreshold", text="Teeth")
+        g.prop(BDENTAL_Props, "TeethSegmentColor", text="")
+        g.prop(BDENTAL_Props, "TeethBool", text="")
+
+        g = box.grid_flow(columns=1, align=True)
+        g.operator("wm.bdental_multitresh_segment")
 
 class BDENTAL_PT_SlicesPanel(bpy.types.Panel):
     """Slices Panel"""
@@ -178,7 +201,16 @@ class BDENTAL_PT_SlicesPanel(bpy.types.Panel):
     bl_label = "SLICES"
     bl_options = {"DEFAULT_CLOSED"}
 
+    @classmethod
+    def poll(cls, context):
+        if context.screen.name == "Bdental Slicer" :
+            return True
+        else:
+            return False
+
     def draw(self, context):
+        if context.screen.name != "Bdental Slicer" :
+            return
         BDENTAL_Props = context.scene.BDENTAL_Props
         layout = self.layout
         box = layout.box()
@@ -599,6 +631,7 @@ classes = [
     BDENTAL_PT_MainPanel,
     BDENTAL_PT_GeneralPanel,
     BDENTAL_PT_DicomPanel,
+    BDENTAL_PT_ReconPanel,
     BDENTAL_PT_SlicesPanel,
     BDENTAL_PT_ImplantPanel,
     BDENTAL_PT_Align,

@@ -11,7 +11,7 @@ from bpy.props import (
 )
 Wmin, Wmax = -400, 3000
 
-from .Operators.BDENTAL_Utils import AbsPath, set_enum_items
+from .Operators.BDENTAL_Utils import AbsPath, RelPath, set_enum_items
 def TresholdMinUpdateFunction(self, context):
     BDENTAL_Props = context.scene.BDENTAL_Props
     GpShader = BDENTAL_Props.GroupNodeName
@@ -84,6 +84,9 @@ def update_user_project_dir(self, context):
         self.ProjectNameProp = basename(abspath(self.UserProjectDir))
         filepath = join(self.UserProjectDir, self.ProjectNameProp+".blend")
         bpy.ops.wm.save_as_mainfile(filepath=filepath)
+        self.UserProjectDir = RelPath(self.UserProjectDir)
+        self.UserDcmDir = self.UserProjectDir
+        self.UserImageFile = self.UserProjectDir
     
      
 class BDENTAL_Props(bpy.types.PropertyGroup):

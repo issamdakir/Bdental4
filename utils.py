@@ -15,6 +15,7 @@ import bpy  # type: ignore
 import gpu # type: ignore
 from gpu_extras.batch import batch_for_shader # type: ignore
 import blf # type: ignore
+from time import sleep
 
 
 
@@ -22,7 +23,7 @@ import blf # type: ignore
 ###########################################
 BLF_INFO = {
     "fontid" : 0,
-    "size" : 18,
+    "size" : 14,
 }
 REPO_URL = "https://github.com/issamdakir/Bdental4/zipball/main"
 VERSION_URL = "https://raw.githubusercontent.com/issamdakir/Bdental4/main/Resources/BDENTAL_Version.txt"
@@ -302,8 +303,10 @@ class BDENTAL_GpuDrawText() :
                 redraw_timer=True,
                 rect_color=BdentalColors.default,
                 txt_color = BdentalColors.black,
+                txt_size = BLF_INFO.get("size"),
                 btn_txt = "OK",
-                info_handler = None
+                info_handler = None,
+                sleep_time=0
                 ):
         
         global DRAW_HANDLERS
@@ -315,11 +318,13 @@ class BDENTAL_GpuDrawText() :
         self.rect_color=rect_color
         
         self.txt_color=txt_color
+        self.txt_size=txt_size
         self.btn_txt=btn_txt
         self.info_handler=info_handler
         self.rect_height=30
         self.offset_vertical=35
         self.offset_horizontal=50
+        self.sleep_time=sleep_time
 
         if self.remove_handlers:
             for _h in DRAW_HANDLERS:
@@ -328,7 +333,18 @@ class BDENTAL_GpuDrawText() :
         if self.message_list:
             self.gpu_info_footer()
             DRAW_HANDLERS.append(self.info_handler)
-        bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)   
+        bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)  
+
+        if self.sleep_time != 0:
+            print(f"sleeping for {self.sleep_time} seconds")
+            sleep(self.sleep_time)
+            
+            for _h in DRAW_HANDLERS:
+                bpy.types.SpaceView3D.draw_handler_remove(_h, "WINDOW")
+            DRAW_HANDLERS = []
+            bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1) 
+        
+    
         
 
     def gpu_info_footer(self):
@@ -345,7 +361,7 @@ class BDENTAL_GpuDrawText() :
 
                 self.draw_gpu_rect(self.offset_horizontal, (self.rect_height*i)+self.offset_vertical, w-self.offset_horizontal, self.rect_height, self.rect_color)
                 blf.position(BLF_INFO.get('fontid'), self.offset_horizontal+10, 10 + (self.rect_height*i)+self.offset_vertical, 0)
-                blf.size(BLF_INFO.get("fontid"), BLF_INFO.get("size")) # 3.6 api blf.size(0, 40, 30) -> blf.size(fontid, size)
+                blf.size(BLF_INFO.get("fontid"), self.txt_size) # 3.6 api blf.size(0, 40, 30) -> blf.size(fontid, size)
                 r, g, b, a = self.txt_color
                 blf.color(0, r, g, b, a)
                 blf.draw(0, txt)
@@ -353,7 +369,7 @@ class BDENTAL_GpuDrawText() :
             if self.button:
                 self.draw_gpu_rect(w-110, 2, 100, self.rect_height-4, BdentalColors.yellow)
                 blf.position(0, w-85, 10, 0)
-                blf.size(BLF_INFO.get("fontid"), BLF_INFO.get("size")) # 3.6 api blf.size(0, 40, 30) -> blf.size(fontid, size)
+                blf.size(BLF_INFO.get("fontid"), self.txt_size) # 3.6 api blf.size(0, 40, 30) -> blf.size(fontid, size)
                 r, g, b, a = self.txt_color
                 blf.color(0, r, g, b, a)
                 blf.draw(0, self.btn_txt)
@@ -362,6 +378,7 @@ class BDENTAL_GpuDrawText() :
             draw_callback_function, (), "WINDOW", "POST_PIXEL"
         )
         bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+        
 
     def draw_gpu_rect(self,x, y, w, h, rect_color):
 

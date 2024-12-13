@@ -430,30 +430,6 @@ class BDENTAL_OT_SetConfig(bpy.types.Operator):
     # def invoke(self, context, event):
     #     wm = context.window_manager
     #     return wm.invoke_props_dialog(self)
-# class BDENTAL_OT_SupportTelegram(bpy.types.Operator):
-#     """ open telegram bdental support link"""
-
-#     bl_idname = "wm.bdental_support_telegram"
-#     bl_label = "Bdental Support (Telegram)"
-#     bl_options = {"REGISTER", "UNDO"}
-
-#     @classmethod
-#     def poll(cls, context):
-#         return isConnected()
-
-
-
-#     def execute(self, context):
-#         global TELEGRAM_LINK
-#         success = browse(TELEGRAM_LINK)
-#         if not success :
-#             txt = ["Go to Bdental Support : failed!"]
-#             rgba = [1, 0, 0, 1]
-#             BDENTAL_GpuDrawText(message_list=txt, rect_color=rgba)
-#             sleep(3)
-#             BDENTAL_GpuDrawText()
-#             return {"CANCELLED"}
-#         return{"FINISHED"}
 
 
 class BDENTAL_OT_AddAppTemplate(bpy.types.Operator):
@@ -688,66 +664,6 @@ class BDENTAL_OT_AlignToActive(bpy.types.Operator):
     def invoke(self, context, event):
         wm = context.window_manager
         return wm.invoke_props_dialog(self)
-
-
-# class BDENTAL_OT_AlignToActive(bpy.types.Operator):
-#     """ Align object to active object """
-
-#     bl_idname = "wm.bdental_align_to_active"
-#     bl_label = "Align to active"
-#     bl_options = {"REGISTER", "UNDO"}
-#     invert_z : BoolProperty(
-#         name="Invert Z",
-#         description="Invert Z axis",
-#         default=False
-#     )
-#     @classmethod
-#     def poll(cls, context):
-#         return context.object and len(context.selected_objects) == 2
-#     def execute(self, context):
-#         active_object = context.object
-#         obj = [o for o in context.selected_objects if not o is context.object][0]
-
-#         active_object_constraint_targets = []
-#         if active_object.constraints :
-#             for c in active_object.constraints :
-#                 if c.type == "CHILD_OF" :
-#                     active_object_constraint_targets.append([c.target, c.use_scale_x, c.use_scale_y, c.use_scale_z])
-#                     context.view_layer.objects.active = active_object
-#                     bpy.ops.constraint.apply(constraint=c.name)
-#         obj_constraint_targets = []
-#         if obj.constraints :
-#             for c in obj.constraints :
-#                 if c.type == "CHILD_OF" :
-#                     obj_constraint_targets.append([c.target, c.use_scale_x, c.use_scale_y, c.use_scale_z])
-#                     context.view_layer.objects.active = obj
-#                     bpy.ops.constraint.apply(constraint=c.name)
-
-
-#         obj.location = active_object.location
-#         obj.rotation_euler = active_object.rotation_euler
-
-#         if self.invert_z :
-#             obj.rotation_euler.rotate_axis("X", math.pi)
-
-#         if active_object_constraint_targets :
-#             for c_settings in active_object_constraint_targets :
-#                 c = active_object.constraints.new("CHILD_OF")
-#                 c.target = c_settings[0]
-#                 c.use_scale_x = c_settings[1]
-#                 c.use_scale_y = c_settings[2]
-#                 c.use_scale_z = c_settings[3]
-#         if obj_constraint_targets :
-#             for c_settings in obj_constraint_targets :
-#                 c = obj.constraints.new("CHILD_OF")
-#                 c.target = c_settings[0]
-#                 c.use_scale_x = c_settings[1]
-#                 c.use_scale_y = c_settings[2]
-#                 c.use_scale_z = c_settings[3]
-#         return{"FINISHED"}
-#     def invoke(self, context, event):
-#         wm = context.window_manager
-#         return wm.invoke_props_dialog(self)
 
 
 class BDENTAL_OT_LockObjects(bpy.types.Operator):
@@ -1287,28 +1203,9 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
 
             UserProjectDir = AbsPath(BDENTAL_Props.UserProjectDir)
             UserDcmDir = AbsPath(BDENTAL_Props.UserDcmDir)
+            print(f"UserDcmDir = {UserDcmDir}")
 
             DcmOrganizeDict = eval(BDENTAL_Props.DcmOrganize)
-
-            # if UserDcmDir in DcmOrganizeDict.keys():
-            #     OrganizeReport = DcmOrganizeDict[UserDcmDir]
-                
-
-            # else:
-            # if not exists(UserProjectDir):
-            #     txt = [
-            #         " Project Directory is not valid ! "]
-            #     BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
-            #     sleep(2)
-            #     BDENTAL_GpuDrawText()
-            #     return {"CANCELLED"}
-
-            # if not exists(UserDcmDir):
-            #     txt = [" The Selected dicom directory is not valid ! "]
-            #     BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
-            #     sleep(2)
-            #     BDENTAL_GpuDrawText()
-            #     return {"CANCELLED"}
 
             if not os.listdir(UserDcmDir):
                 txt = ["No files found in dicom directory ! "]
@@ -1318,21 +1215,33 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
                 return {"CANCELLED"}
 
             Series_reader = sitk.ImageSeriesReader()
-
+            sids = None
             try:
-                series_IDs_Files = []
-                for i, S_ID in enumerate(Series_reader.GetGDCMSeriesIDs(UserDcmDir)):
-                    # print(i)
-                    series_IDs_Files.append(
-                        [S_ID, Series_reader.GetGDCMSeriesFileNames(UserDcmDir, S_ID)])
-                    message = [f"Dicom series total = {i+1} ..."]
-                    BDENTAL_GpuDrawText(message)
-            except:
-                txt = ["scan data is not valid !"]
+                sids = Series_reader.GetGDCMSeriesIDs(UserDcmDir)
+            except Exception as e:
+                print(f"GetGDCMSeriesIDs error : {e}")
+                message = ["No valid DICOM Serie found in DICOM Folder ! "]
                 BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.red)
                 sleep(2)
                 BDENTAL_GpuDrawText()
                 return {"CANCELLED"}
+
+
+            if not sids:
+                message = ["No valid DICOM Serie found in DICOM Folder ! "]
+                BDENTAL_GpuDrawText(message_list=message, rect_color=BdentalColors.red)
+                sleep(2)
+                BDENTAL_GpuDrawText()
+                return {"CANCELLED"}
+            
+            series_IDs_Files = []
+            for i, S_ID in enumerate(sids):
+                # print(i)
+                series_IDs_Files.append(
+                    [S_ID, Series_reader.GetGDCMSeriesFileNames(UserDcmDir, S_ID)])
+            message = [f"Dicom series total = {len(series_IDs_Files)}"]
+            BDENTAL_GpuDrawText(message_list=message)
+            sleep(2)
 
             tags = dict(
                 {
@@ -1356,9 +1265,7 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
                 reader.ReadImageInformation()
 
                 Image = reader.Execute()
-                Spacing = Image.GetSpacing()[:2]
-                # print(Spacing)
-                # BDENTAL_Props.scan_resolution = max(Spacing)
+                sp = round(max(Image.GetSpacing()[:2]), 3)
 
                 for attribute, tag in tags.items():
 
@@ -1371,14 +1278,13 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
                     DcmOrganizeDict[UserDcmDir][S_ID][attribute] = v
 
                 DcmOrganizeDict[UserDcmDir][S_ID]["Files"] = FilesList
-                DcmOrganizeDict[UserDcmDir][S_ID]["spacing"] = Spacing
+                DcmOrganizeDict[UserDcmDir][S_ID]["spacing"] = sp
 
             SortedList = sorted(
                 DcmOrganizeDict[UserDcmDir].items(),
                 key=lambda x: x[1]["Count"],
                 reverse=True,
             )
-            # Sorted = list(sorted(DcmOrganizeDict[UserDcmDir], reverse=True))
 
             SortedOrganizeDict = {}
             for i, (k, v) in enumerate(SortedList):
@@ -1410,25 +1316,15 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
                     "Series Description": Descript,
                     "Patient Orientation": PatientOrientation,
                 }
-                txt.append(f"{serie} : {Count} slices")
-            txt.insert(0,f"Name : {Name}")
-            txt.insert(1,f"Date : {Date}")
-            txt.insert(2,f"scan resolution : {spacing[0]}")
-            BDENTAL_Props.scan_resolution = max(spacing)
+                txt.append(f"{serie} : {Count} slices, scan resolution : {spacing}")
+            # txt.insert(0,f"Name : {Name}")
+            # txt.insert(1,f"Date : {Date}")
+            
+            BDENTAL_Props.scan_resolution = spacing
             # for serie, info in Message.items():
             #     print(serie, ":\n\t", info)
 
             BDENTAL_Props.OrganizeInfoProp = str(Message)
-            # Save Blend File :
-            bpy.ops.wm.save_mainfile()
-            BDENTAL_Props.UserProjectDir = RelPath(UserProjectDir)
-
-            # ProjectName = BDENTAL_Props.ProjectNameProp
-            # BlendFile = f"{ProjectName}.blend"
-            # Blendpath = join(UserProjectDir, BlendFile)
-            # bpy.ops.wm.save_as_mainfile(filepath=Blendpath)
-            # BDENTAL_Props.UserProjectDir = RelPath(UserProjectDir)
-
 
             # n = len(OrganizeReport)
             # txt = [
@@ -1438,10 +1334,11 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
             # txt = list(Message.items())
             # print(txt)
             
-            BDENTAL_GpuDrawText(message_list=txt)
-            sleep(5)
+            # BDENTAL_GpuDrawText(message_list=txt)
+            # sleep(2)
             txt = ["Finished."]
             BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.green)
+            sleep(2)
 
         else:
             txt = ["Reading 3D Image File ..."]
@@ -1488,8 +1385,8 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
                 }
             )
             DcmOrganizeDict[UserImageFile] = {}
-            Sp = Spacing = Image.GetSpacing()
-            BDENTAL_Props.scan_resolution = max(Sp)
+            sp = round(max(Image.GetSpacing()[:2]), 3)
+            BDENTAL_Props.scan_resolution = sp
 
             for attribute, tag in tags.items():
 
@@ -1501,7 +1398,7 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
 
                 DcmOrganizeDict[UserImageFile][attribute] = v
 
-            DcmOrganizeDict[UserImageFile]["spacing"] = Sp
+            DcmOrganizeDict[UserImageFile]["spacing"] = sp
             BDENTAL_Props.DcmOrganize = str(DcmOrganizeDict)
             # OrganizeReport = DcmOrganizeDict
 
@@ -1510,26 +1407,17 @@ class BDENTAL_OT_Organize(bpy.types.Operator):
             if _name_tag in Image.GetMetaDataKeys():
                 _name = Image.GetMetaData(_name_tag)
             txt = [
-                f'Name : {_name}',
-                f'Scan resolution  : {max(Sp)}',
+                f'Scan resolution  : {sp} mm',
             ]
             
             BDENTAL_GpuDrawText(message_list=txt, rect_color=BdentalColors.green)
-            sleep(5)
-            # Save Blend File :
-            BDENTAL_Props.UserProjectDir = RelPath(UserProjectDir)
+            sleep(2)
             
-                # Save Blend File :
-                # ProjectName = BDENTAL_Props.ProjectNameProp
-                # BlendFile = f"{ProjectName}.blend"
-                # Blendpath = join(UserProjectDir, BlendFile)
-                # bpy.ops.wm.save_as_mainfile(filepath=Blendpath)
-                # BDENTAL_Props.UserProjectDir = RelPath(UserProjectDir)
 
-        sleep(1)
         BDENTAL_GpuDrawText()
         # Save Blend File :
         bpy.ops.wm.save_mainfile()
+        BDENTAL_Props.UserProjectDir = RelPath(UserProjectDir)
 
         return {"FINISHED"}
 
@@ -2560,11 +2448,13 @@ class BDENTAL_OT_Volume_Render(bpy.types.Operator):
                 context, self.q, "FAST")
 
         if message:
-            BDENTAL_GpuDrawText(message)
-            sleep(3)
-            BDENTAL_GpuDrawText()
+            BDENTAL_GpuDrawText(message_list=message,rect_color=BdentalColors.red,sleep_time=3)
             return {"CANCELLED"}
         else:
+            colls = ["CT_Voxel", "SLICES_POINTER", "SLICES"] 
+            for n in colls:
+                if bpy.data.collections.get(n):
+                    hide_collection(_hide=False, colname=n)
 
             Preffix = DcmInfo["Preffix"]
             self.VolumeRender(context,DcmInfo, GpShader, DataBlendFile, "FAST")
@@ -2614,9 +2504,7 @@ class BDENTAL_OT_Volume_Render(bpy.types.Operator):
     def invoke(self, context, event):
         if not self.is_ready(context) :
             txt = [" Please Organize DICOM data and retry ! "]
-            BDENTAL_GpuDrawText(message_list=txt,rect_color=BdentalColors.red)
-            sleep(2)
-            BDENTAL_GpuDrawText()
+            BDENTAL_GpuDrawText(message_list=txt,rect_color=BdentalColors.red, sleep_time=2)
             return {"CANCELLED"}
         wm = context.window_manager
         return wm.invoke_props_dialog(self)
